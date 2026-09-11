@@ -32,6 +32,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/ui": "^5.0.0",
     "eslint-config-prettier": "^10.1.8",
+    "firebase-admin": "^14.4.0",
     "jsdom": "^30.0.1",
     "oxlint": "^1.79.0",
     "prettier": "^3.9.6",

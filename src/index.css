@@ -1,9 +1,21 @@
 @import 'tailwindcss';
 
+/* Força tema claro enquanto o Dark Mode (Feature #14, M15) não existe — sem isso,
+   o navegador aplica o dark mode do SO de forma inconsistente entre o input/select
+   fechado e a lista nativa de opções aberta, quebrando o contraste de leitura. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+@layer components {
+  .input-field {
+    @apply w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-900
+      placeholder-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black;
+  }
 }

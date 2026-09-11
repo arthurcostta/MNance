@@ -156,4 +156,30 @@ npm run build
     série SGS) com fallback estático é tarefa **separada, pós-M1**:
     `services/rateProviderService.ts` (fora de `core/`, que não pode ter I/O de rede).
 
-**Próximo:** M2 — Onboarding (Feature #1: form multi-step → `emergencyReserve` + distribuição default).
+**M2 — Onboarding (Feature #1): concluído.**
+- Form multi-step (5 passos: meta, patrimônio, renda, pagamentos, revisão) em
+  `components/Onboarding/`, validação manual em TypeScript (`hooks/useOnboarding.ts`,
+  função pura `validateStep()`), sem libs de formulário adicionadas.
+- `services/userService.ts` e `services/distributionService.ts` (novos) — únicas
+  camadas que gravam/leem `users/{uid}` e `users/{uid}/distribution/current`.
+- `AuthContext` estendido: expõe `currentUser: User | null` (documento Firestore) e
+  `refreshCurrentUser()`, usado após o Onboarding salvar para o Dashboard já enxergar
+  os dados novos sem reload.
+- Reserva de emergência (`emergencyReserve.ts`, M1) exibida no Step 3 com tooltip
+  explicando por que a base é a renda, não o custo essencial — resolve a pendência
+  registrada no M1.
+- Distribuição default: Nível 2 (`allocationModel`) mapeado do `riskProfile` escolhido
+  (moderate → ALL_WEATHER); Nível 1 (essentials/freedom/investments) usa 50/30/20 como
+  ponto de partida — **decisão não travada no plano original, revisar se o PRD define
+  outro default**.
+- Permite reedição: se `users/{uid}` já existe, o form pré-popula e o botão vira
+  "Atualizar"; `onboardingCompletedAt` é regravado a cada salvamento (M4 decide como
+  usar esse campo para diferenciar primeiro acesso).
+- `npm test` (69 testes), `tsc --noEmit` e `npm run build` passam sem erros. `npm run
+  lint` sem erros novos (2 warnings: 1 pré-existente do M0 em `AuthContext.tsx`, 1 novo
+  do `setState` dentro de `useEffect` em `useOnboarding.ts` — necessário para
+  pré-popular o form ao carregar o documento do Firestore).
+- Verificação manual em navegador (signup → onboarding → Firestore → Dashboard) ainda
+  pendente de execução pelo usuário.
+
+**Próximo:** M3 — Feature #5 Portfólio (CRUD de ativos, soft-delete via `status`).

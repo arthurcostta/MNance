@@ -29,7 +29,7 @@ export default function Login() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2"
+          className="input-field"
         />
         <input
           type="password"
@@ -37,7 +37,7 @@ export default function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2"
+          className="input-field"
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button type="submit" className="w-full rounded bg-black py-2 text-white">

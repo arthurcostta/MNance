@@ -16,6 +16,9 @@ export interface User {
   payday1: number
   payday2: number | null
   darkMode: boolean
+  // Marca quando o onboarding foi concluído/atualizado pela última vez — M4 (Dashboard)
+  // usa esse campo para diferenciar primeiro acesso de reedição.
+  onboardingCompletedAt?: Timestamp
   createdAt: Timestamp
   updatedAt: Timestamp
 }
