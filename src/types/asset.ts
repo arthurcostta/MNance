@@ -12,3 +12,7 @@ export interface Asset {
   createdAt: Timestamp
   updatedAt: Timestamp
 }
+
+export interface AssetWithId extends Asset {
+  id: string
+}

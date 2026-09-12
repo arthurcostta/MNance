@@ -19,6 +19,9 @@ export interface User {
   // Marca quando o onboarding foi concluído/atualizado pela última vez — M4 (Dashboard)
   // usa esse campo para diferenciar primeiro acesso de reedição.
   onboardingCompletedAt?: Timestamp
+  // Marcado true quando o usuário dispensa o banner de seed de patrimônio em M3 (Portfólio).
+  // Nunca retorna false — é permanente para evitar re-exibição.
+  portfolioSeedDismissed?: boolean
   createdAt: Timestamp
   updatedAt: Timestamp
 }
