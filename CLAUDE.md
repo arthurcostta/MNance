@@ -182,4 +182,60 @@ npm run build
 - Verificação manual em navegador (signup → onboarding → Firestore → Dashboard) ainda
   pendente de execução pelo usuário.
 
-**Próximo:** M3 — Feature #5 Portfólio (CRUD de ativos, soft-delete via `status`).
+**M3 — Portfólio (Feature #5): concluído.** *(registrado retroativamente — nunca havia
+sido documentado aqui, embora já implementado e testado manualmente com sucesso antes
+do M4 começar.)*
+- `services/assetService.ts` (novo) — primeiro serviço do projeto a usar CRUD de
+  coleção (`addDoc`/`getDocs`/`updateDoc`), padrão que `investments`/`installments`/
+  `scenarios` vão reaproveitar. Sem índice composto: filtro/ordenação (`status`,
+  `createdAt`) no cliente, poucos ativos por usuário.
+- `hooks/usePortfolio.ts` (novo) — função pura `validateAssetForm()` + hook stateful
+  expondo `assets`/`totalValue`/`weightedReturn` (via `core/weightedReturn.ts`).
+  `portfolio.totalValue` passa a ser a fonte autoritativa de "patrimônio atual" em
+  qualquer cálculo futuro — não `User.currentPatrimony` (que é só o snapshot estático
+  do Onboarding). **M4 herda essa decisão.**
+- Fluxo de "seed": ao abrir o Portfólio vazio com `currentPatrimony > 0`, oferece criar
+  um ativo inicial com esse valor; aceitar ou dispensar marca
+  `User.portfolioSeedDismissed = true` permanentemente (nunca reexibe).
+- Soft-delete via `status: 'archived'` — sem tela de restauração nesta versão.
+- `npm test`, `npm run lint`, `npm run build` sem erros. Verificação manual completa
+  (seed, CRUD, arquivamento, totais) executada pelo usuário com sucesso.
+
+**M4 — Radar de Patrimônio / Dashboard (Feature #2): concluído.**
+- `components/Common/ProtectedRoute.tsx` — corrigido bug real: guardava só contra
+  `!user` (Firebase Auth), nunca contra onboarding incompleto (`!currentUser`). Agora
+  redireciona para `/onboarding` quando falta o documento Firestore, com `useLocation`
+  para não criar loop quando já está lá.
+- `hooks/useDashboard.ts` (novo) — função pura `calculateDashboardMetrics()` + hook
+  stateful. **Desvio consciente do PRD §4.2** (mesmo padrão de `emergencyReserve.ts` em
+  M1): "velocidade de crescimento" não usa média de aportes reais (não existe ledger de
+  aportes até M15) — é um proxy derivado:
+  `monthlyContribution = monthlyIncomeNet - essentialMonthlyCost`,
+  `velocity = monthlyContribution + portfolio.totalValue * annualToMonthlyRate(weightedReturn)`.
+- Reaproveita `core/goalTimeline.ts` (tempo até a meta, cenário base + boosted com
+  aporte +20%) e `core/projection.ts` (série ano a ano do gráfico) sem qualquer
+  alteração nesses módulos.
+- Insight "+20% de aporte" é suprimido quando o aporte é zero/negativo, a meta já foi
+  atingida, ou o resultado turbinado é numericamente idêntico ao base (evita sugestão
+  vazia).
+- `budgetAlert` (banner, não bloqueia o resto da tela) quando `essentialMonthlyCost >
+  monthlyIncomeNet` — dispensável na sessão, sem persistência no Firestore (diferente do
+  seed banner do M3, que é permanente).
+- `components/Dashboard/ProjectionChart.tsx` — primeiro uso de Chart.js/react-chartjs-2
+  no projeto (dependência já existia no `package.json` desde o M0, nunca usada).
+- Mensagem "convite à ação" para meta inatingível dentro do teto de 100 anos reaproveita
+  o texto já redigido na nota de produto do M1 (`core/goalTimeline.ts`) — não é frase
+  nova.
+- Fora de escopo (decisão explícita, não esquecimento): widget "Distribuição Ativa"
+  (M5); comparação meta-original vs. tempo calculado (M6/Simulador); ledger real de
+  aportes.
+- `npm test` (95 testes, 13 arquivos, incluindo `hooks/__tests__/useDashboard.test.ts`
+  com os casos de meta já atingida, aporte zero/negativo, patrimônio zero e boost
+  numericamente idêntico ao base), `npm run lint` (sem warnings novos) e `npm run build`
+  sem erros.
+- Verificação manual em navegador (redirect de onboarding incompleto, stat blocks,
+  banner de alerta, mensagens condicionais, gráfico) pendente de execução pelo usuário —
+  dev server disponível em `http://localhost:5174` nesta sessão.
+
+**Próximo:** M5 — Feature #13 Distribuição de Renda (Nível 1 + Nível 2 com
+`AllocationModelPicker`, reserva de emergência somente-leitura).
