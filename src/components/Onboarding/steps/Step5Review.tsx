@@ -29,7 +29,12 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function Step5Review({ data, emergencyReserve, defaultDistribution }: Step5ReviewProps) {
-  const allocationModel = ALLOCATION_MODELS[defaultDistribution.allocationModel]
+  // getDefaultDistribution nunca retorna 'CUSTOM' (só é possível editando depois na tela
+  // de Distribuição), mas o tipo é compartilhado com Distribution.tsx — guard só por tipo.
+  const allocationModelLabel =
+    defaultDistribution.allocationModel === 'CUSTOM'
+      ? 'Personalizado'
+      : ALLOCATION_MODELS[defaultDistribution.allocationModel].label
 
   return (
     <div className="space-y-4">
@@ -51,21 +56,17 @@ export default function Step5Review({ data, emergencyReserve, defaultDistributio
       <div className="rounded border bg-gray-50 p-3 text-sm">
         <p className="font-medium">Sua distribuição de renda (ponto de partida)</p>
         <div className="mt-2 space-y-1">
-          <Row label="Essenciais" value={`${defaultDistribution.essentialsPercent}%`} />
-          <Row label="Liberdade" value={`${defaultDistribution.freedomPercent}%`} />
+          <Row label="Despesas Essenciais" value={`${defaultDistribution.essentialsPercent}%`} />
+          <Row label="Educação" value={`${defaultDistribution.educationPercent}%`} />
+          <Row label="Lazer" value={`${defaultDistribution.leisurePercent}%`} />
           <Row label="Investimentos" value={`${defaultDistribution.investmentsPercent}%`} />
-          <Row label="Modelo de alocação dos investimentos" value={allocationModel.label} />
+          <Row label="Modelo de alocação dos investimentos" value={allocationModelLabel} />
         </div>
         <p className="mt-3 text-gray-600">
-          Começamos com a <strong>Regra 50/30/20</strong>: 50% para o que você precisa
-          (essenciais), 30% para o que você quer (liberdade) e 20% para construir
-          patrimônio (investimentos). A regra foi popularizada pela senadora americana e
-          ex-professora de Direito em Harvard <strong>Elizabeth Warren</strong>, no livro{' '}
-          <em>"All Your Worth: The Ultimate Lifetime Money Plan"</em> (2005), escrito com
-          sua filha Amelia Warren Tyagi — é um ponto de partida simples para equilibrar
-          sobrevivência, qualidade de vida e construção de patrimônio ao mesmo tempo.
-          Você poderá ajustar esses percentuais quando quiser na tela de Distribuição de
-          Renda.
+          Começamos com <strong>55% essenciais, 10% educação, 10% lazer e 25% investimentos</strong> —
+          um ponto de partida que reserva espaço tanto para crescer (educação) quanto para
+          viver bem no presente (lazer), sem abrir mão de construir patrimônio. Você poderá
+          ajustar esses percentuais quando quiser na tela de Distribuição de Renda.
         </p>
       </div>
     </div>

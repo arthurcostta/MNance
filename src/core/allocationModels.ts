@@ -3,6 +3,9 @@
 // entre "All Weather" (seções 4.1/5) e a definição correta (seção 4.7).
 // Ver decisão arquitetural: C02 - IA/Claude/Decissoes-e-Historico/2026-09-04_MNance-Arquitetura-v1.md
 
+import { ASSET_RETURN_RATES, type AssetClass } from './assetReturnRates'
+import { calculateWeightedReturn } from './weightedReturn'
+
 export type AllocationModelKey = 'ALL_WEATHER' | 'CONSERVATIVE' | 'AGGRESSIVE'
 
 export interface AllocationModel {
@@ -35,4 +38,22 @@ export const ALLOCATION_MODELS: Record<AllocationModelKey, AllocationModel> = {
     alternatives: 0.1,
     cash: 0,
   },
+}
+
+// Feature #7 (Recomendação de Alocação) — retorno esperado de um modelo, derivado da taxa
+// média por classe do catálogo já existente (assetReturnRates.ts), nunca uma taxa nova
+// hardcoded — evita duplicar premissas de retorno em dois lugares do código.
+function averageRateByClass(assetClass: AssetClass): number {
+  const rates = Object.values(ASSET_RETURN_RATES).filter((r) => r.assetClass === assetClass)
+  if (rates.length === 0) return 0
+  return rates.reduce((sum, r) => sum + r.annualRate, 0) / rates.length
+}
+
+export function calculateModelExpectedReturn(model: AllocationModel): number {
+  return calculateWeightedReturn([
+    { amount: model.stocks, expectedReturnRate: averageRateByClass('stocks') },
+    { amount: model.bonds, expectedReturnRate: averageRateByClass('bonds') },
+    { amount: model.alternatives, expectedReturnRate: averageRateByClass('alternatives') },
+    { amount: model.cash, expectedReturnRate: averageRateByClass('cash') },
+  ])
 }

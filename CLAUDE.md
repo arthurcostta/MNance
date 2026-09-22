@@ -237,5 +237,47 @@ do M4 começar.)*
   banner de alerta, mensagens condicionais, gráfico) pendente de execução pelo usuário —
   dev server disponível em `http://localhost:5174` nesta sessão.
 
-**Próximo:** M5 — Feature #13 Distribuição de Renda (Nível 1 + Nível 2 com
-`AllocationModelPicker`, reserva de emergência somente-leitura).
+**M5 — Distribuição de Renda (Feature #13 + #7 embutida): concluído.**
+- `types/distribution.ts` reescrito: Nível 1 vira 4 categorias (`essentialsPercent`/
+  `educationPercent`/`leisurePercent`/`investmentsPercent`, default 55/10/10/25, fiel ao
+  PRD §5 — substitui o schema simplificado de 3 categorias criado antecipadamente no M2).
+  Nível 2 ganha `DistributionModelChoice = AllocationModelKey | 'CUSTOM'` +
+  `customAllocation?: CustomAllocation`, preservado mesmo trocando de modelo (nunca é
+  apagado ao voltar para um preset).
+- `core/allocationModels.ts` — nova função pura `calculateModelExpectedReturn(model)`
+  (Feature #7): deriva taxa média por classe do catálogo já existente
+  (`assetReturnRates.ts`) e reaproveita `calculateWeightedReturn`, sem hardcodar taxa
+  nova. Recomendação de Alocação **não virou página própria** — é o componente
+  `AllocationModelPicker`, embutido na tela de Distribuição, conforme decisão
+  arquitetural original.
+- `services/distributionService.ts` — nova `updateDistribution()` (merge via
+  `updateDoc`), usada porque Nível 1 e Nível 2 salvam em ações separadas; `setDistribution`
+  (overwrite) continua exclusiva do Onboarding.
+- `hooks/useDistribution.ts` (novo) — funções puras testáveis (`validateNivelUm`,
+  `validateCustomAllocation`, `calculateDistributionAmounts`, `resolveAllocationModel`) +
+  hook stateful. **Guard defensivo de runtime** (não é migração multiusuário): documento
+  antigo do M2 sem `educationPercent`/`leisurePercent` é tratado como ausente e cai no
+  default novo. Reserva de emergência sempre recalculada ao vivo via
+  `calculateEmergencyReserve` — nunca lida de campo editável.
+- `components/Distribution/`: `NivelUmForm.tsx`, `AllocationModelPicker.tsx` (cards de
+  preset + "Personalizado", com `window.confirm` antes de trocar para longe de um modelo
+  customizado — nunca apaga a customização salva) e `EmergencyReserveCard.tsx`
+  (somente-leitura, sem nenhum input).
+- `pages/Distribution.tsx` reescrito: compõe os três componentes + linha de status
+  "retorno esperado X% a.a. — bate/não bate sua meta" via `core/goalTimeline.ts`.
+- `hooks/useDashboard.ts` e `pages/Dashboard.tsx` — aditivo: compõe `useDistribution()` e
+  exibe o card somente-leitura "💎 Distribuição Ativa" do mockup do PRD §4.2 (fora de
+  escopo até o M5, conforme registrado no M4).
+- `components/Onboarding/steps/Step5Review.tsx` atualizado para o novo schema de 4
+  categorias (a cópia da "Regra 50/30/20 de Elizabeth Warren" foi removida — não
+  correspondia mais aos percentuais reais 55/10/10/25 do PRD).
+- `npm test` (110 testes, 14 arquivos, incluindo `hooks/__tests__/useDistribution.test.ts`
+  e a extensão de `core/__tests__/allocationModels.test.ts` com
+  `calculateModelExpectedReturn`), `npm run lint` (sem warnings novos) e `npm run build`
+  sem erros.
+- Verificação manual em navegador (documento legado, soma 100%/95%/105%/33,33×3, troca de
+  modelo preservando customização, percentuais exatos dos 3 presets, card no Dashboard)
+  pendente de execução pelo usuário — dev server disponível em `http://localhost:5173`
+  nesta sessão.
+
+**Próximo:** M6 — Simulador de Cenários (Feature #3).

@@ -31,7 +31,8 @@ function formatTimeToGoal(result: GoalTimelineResult): string {
 
 export default function Dashboard() {
   const { currentUser } = useAuth()
-  const { loading, metrics, chartSeries, currentPatrimony, hasAssets } = useDashboard()
+  const { loading, metrics, chartSeries, currentPatrimony, hasAssets, distributionSummary } =
+    useDashboard()
 
   if (loading || !metrics || !currentUser) {
     return <div className="p-4 text-sm text-gray-500">Carregando radar de patrimônio...</div>
@@ -92,6 +93,24 @@ export default function Dashboard() {
       )}
 
       <ProjectionChart series={chartSeries} showBoosted={showBoostInsight} />
+
+      {distributionSummary && (
+        <div className="mt-6 rounded border border-gray-200 bg-white p-4">
+          <p className="mb-2 text-xs font-medium text-gray-600">💎 Distribuição Ativa</p>
+          <p className="text-sm text-gray-800">
+            Essenciais {distributionSummary.essentialsPercent}% · Educação{' '}
+            {distributionSummary.educationPercent}% · Lazer {distributionSummary.leisurePercent}% ·
+            Investimentos {distributionSummary.investmentsPercent}%
+          </p>
+          <p className="mt-1 text-sm text-gray-800">
+            Modelo: <span className="font-medium">{distributionSummary.modelLabel}</span> — retorno
+            esperado {(distributionSummary.expectedReturn * 100).toFixed(1)}% a.a.
+          </p>
+          <Link to="/distribution" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
+            Editar distribuição
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

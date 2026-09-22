@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
+import { useDistribution } from './useDistribution'
+import { ALLOCATION_MODELS } from '../core/allocationModels'
 import { calculateGoalTimeline, type GoalTimelineResult } from '../core/goalTimeline'
 import { calculateProjection } from '../core/projection'
 import { annualToMonthlyRate } from '../core/compoundInterest'
@@ -77,9 +79,19 @@ export interface ProjectionPoint {
   boosted?: number
 }
 
+export interface DistributionSummary {
+  essentialsPercent: number
+  educationPercent: number
+  leisurePercent: number
+  investmentsPercent: number
+  modelLabel: string
+  expectedReturn: number
+}
+
 export function useDashboard() {
   const { user, currentUser, loading: authLoading } = useAuth()
   const portfolio = usePortfolio(user?.uid)
+  const distribution = useDistribution(user?.uid)
 
   const metrics = useMemo(() => {
     if (!currentUser) return null
@@ -126,11 +138,28 @@ export function useDashboard() {
     return points
   }, [metrics, portfolio.totalValue, portfolio.weightedReturn])
 
+  const distributionSummary = useMemo<DistributionSummary | null>(() => {
+    if (!currentUser || distribution.loading) return null
+    const modelLabel =
+      distribution.modelChoice === 'CUSTOM'
+        ? 'Personalizado'
+        : ALLOCATION_MODELS[distribution.modelChoice].label
+    return {
+      essentialsPercent: distribution.nivelUm.essentialsPercent,
+      educationPercent: distribution.nivelUm.educationPercent,
+      leisurePercent: distribution.nivelUm.leisurePercent,
+      investmentsPercent: distribution.nivelUm.investmentsPercent,
+      modelLabel,
+      expectedReturn: distribution.expectedReturn,
+    }
+  }, [currentUser, distribution])
+
   return {
     loading: authLoading || portfolio.loadingInitial,
     metrics,
     chartSeries,
     currentPatrimony: portfolio.totalValue,
     hasAssets: portfolio.assets.length > 0,
+    distributionSummary,
   }
 }
