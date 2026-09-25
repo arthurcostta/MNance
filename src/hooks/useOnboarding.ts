@@ -123,7 +123,7 @@ export function useOnboarding(uid: string | undefined) {
     monthlyIncomeNet: data.monthlyIncomeNet,
   })
 
-  const defaultDistribution = getDefaultDistribution(data.riskProfile)
+  const defaultDistribution = getDefaultDistribution(data.riskProfile, data.payday2 !== null)
 
   const updateField = useCallback(
     <K extends keyof OnboardingData>(field: K, value: OnboardingData[K]) => {
@@ -173,7 +173,7 @@ export function useOnboarding(uid: string | undefined) {
         darkMode: data.darkMode,
         onboardingCompletedAt: Timestamp.now(),
       })
-      await setDistribution(uidToSave, getDefaultDistribution(data.riskProfile))
+      await setDistribution(uidToSave, getDefaultDistribution(data.riskProfile, data.payday2 !== null))
     },
     [data, emergencyReserve]
   )

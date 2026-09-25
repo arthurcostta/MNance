@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { signup } from '../services/authService'
+import Button from '../components/Common/Button'
+import Alert from '../components/Common/Alert'
+import FormField from '../components/Common/FormField'
 
 export default function Signup() {
   const [email, setEmail] = useState('')
@@ -23,29 +26,40 @@ export default function Signup() {
     <div className="flex min-h-svh items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <h1 className="text-2xl font-semibold">Criar conta no MNance</h1>
-        <input
-          type="email"
-          placeholder="E-mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="input-field"
-        />
-        <input
-          type="password"
-          placeholder="Senha (mín. 6 caracteres)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          className="input-field"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" className="w-full rounded bg-black py-2 text-white">
+        <FormField label="E-mail">
+          {(fieldProps) => (
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="input-field"
+              {...fieldProps}
+            />
+          )}
+        </FormField>
+        <FormField label="Senha" hint="Mínimo de 6 caracteres">
+          {(fieldProps) => (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="input-field"
+              {...fieldProps}
+            />
+          )}
+        </FormField>
+        {error && <Alert variant="error">{error}</Alert>}
+        <Button type="submit" className="w-full">
           Criar conta
-        </button>
+        </Button>
         <p className="text-sm">
-          Já tem conta? <Link to="/login" className="underline">Entrar</Link>
+          Já tem conta?{' '}
+          <Link to="/login" className="underline">
+            Entrar
+          </Link>
         </p>
       </form>
     </div>

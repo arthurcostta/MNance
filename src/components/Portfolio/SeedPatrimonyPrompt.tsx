@@ -1,3 +1,6 @@
+import Card from '../Common/Card'
+import Button from '../Common/Button'
+
 interface SeedPatrimonyPromptProps {
   amount: number
   onAccept: () => void
@@ -19,27 +22,19 @@ export default function SeedPatrimonyPrompt({
   isPending = false,
 }: SeedPatrimonyPromptProps) {
   return (
-    <div className="mb-6 rounded border border-blue-200 bg-blue-50 p-4">
+    <Card className="mb-6 border-blue-200 bg-blue-50">
       <p className="mb-4 text-sm text-gray-800">
         Você informou um patrimônio de <span className="font-semibold">{formatCurrency(amount)}</span> no
         onboarding. Quer criar um ativo inicial com esse valor?
       </p>
       <div className="flex gap-2">
-        <button
-          onClick={onAccept}
-          disabled={isPending}
-          className="flex-1 rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:bg-blue-400"
-        >
+        <Button onClick={onAccept} disabled={isPending} className="flex-1">
           {isPending ? 'Criando...' : 'Sim, criar'}
-        </button>
-        <button
-          onClick={onDismiss}
-          disabled={isPending}
-          className="flex-1 rounded border border-blue-300 px-3 py-2 text-sm text-blue-600 disabled:border-blue-200 disabled:text-blue-400"
-        >
+        </Button>
+        <Button variant="secondary" onClick={onDismiss} disabled={isPending} className="flex-1">
           Dispensar
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }

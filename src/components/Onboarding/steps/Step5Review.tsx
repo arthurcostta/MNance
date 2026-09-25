@@ -1,7 +1,8 @@
 import type { OnboardingData } from '../../../hooks/useOnboarding'
 import type { EmergencyReserveResult } from '../../../core/emergencyReserve'
-import type { Distribution } from '../../../types/distribution'
+import type { Distribution, PaydaySplit } from '../../../types/distribution'
 import { ALLOCATION_MODELS } from '../../../core/allocationModels'
+import Card from '../../Common/Card'
 
 interface Step5ReviewProps {
   data: OnboardingData
@@ -28,18 +29,25 @@ function Row({ label, value }: { label: string; value: string }) {
   )
 }
 
-export default function Step5Review({ data, emergencyReserve, defaultDistribution }: Step5ReviewProps) {
-  // getDefaultDistribution nunca retorna 'CUSTOM' (só é possível editando depois na tela
-  // de Distribuição), mas o tipo é compartilhado com Distribution.tsx — guard só por tipo.
-  const allocationModelLabel =
-    defaultDistribution.allocationModel === 'CUSTOM'
-      ? 'Personalizado'
-      : ALLOCATION_MODELS[defaultDistribution.allocationModel].label
+function PaydaySplitRows({ split }: { split: PaydaySplit }) {
+  return (
+    <>
+      <Row label="Despesas Essenciais" value={`${split.essentialsPercent}%`} />
+      <Row label="Educação" value={`${split.educationPercent}%`} />
+      <Row label="Lazer" value={`${split.leisurePercent}%`} />
+      <Row label="Investimentos" value={`${split.investmentsPercent}%`} />
+      {split.companyCashPercent > 0 && (
+        <Row label="Caixa da Empresa" value={`${split.companyCashPercent}%`} />
+      )}
+    </>
+  )
+}
 
+export default function Step5Review({ data, emergencyReserve, defaultDistribution }: Step5ReviewProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Revisão</h2>
-      <div className="rounded border p-3">
+      <Card>
         <Row label="Nome" value={data.name} />
         <Row label="Meta de patrimônio" value={formatCurrency(data.goalAmount)} />
         <Row label="Prazo" value={`${data.goalYears} anos`} />
@@ -51,24 +59,46 @@ export default function Step5Review({ data, emergencyReserve, defaultDistributio
         <Row label="Reserva segura (12 meses)" value={formatCurrency(emergencyReserve.safeReserve)} />
         <Row label="Dia de pagamento" value={String(data.payday1)} />
         <Row label="Segundo dia de pagamento" value={data.payday2 ? String(data.payday2) : '—'} />
-      </div>
+      </Card>
 
-      <div className="rounded border bg-gray-50 p-3 text-sm">
+      <Card className="bg-gray-50 text-sm">
         <p className="font-medium">Sua distribuição de renda (ponto de partida)</p>
-        <div className="mt-2 space-y-1">
-          <Row label="Despesas Essenciais" value={`${defaultDistribution.essentialsPercent}%`} />
-          <Row label="Educação" value={`${defaultDistribution.educationPercent}%`} />
-          <Row label="Lazer" value={`${defaultDistribution.leisurePercent}%`} />
-          <Row label="Investimentos" value={`${defaultDistribution.investmentsPercent}%`} />
-          <Row label="Modelo de alocação dos investimentos" value={allocationModelLabel} />
+
+        <div className="mt-2">
+          <p className="text-xs font-medium text-gray-600">
+            {defaultDistribution.payday2Split ? '1º pagamento' : 'Divisão mensal'}
+          </p>
+          <PaydaySplitRows split={defaultDistribution.payday1Split} />
         </div>
+
+        {defaultDistribution.payday2Split && (
+          <div className="mt-3">
+            <p className="text-xs font-medium text-gray-600">2º pagamento</p>
+            <PaydaySplitRows split={defaultDistribution.payday2Split} />
+          </div>
+        )}
+
+        <div className="mt-3">
+          <p className="text-xs font-medium text-gray-600">Objetivos de investimento</p>
+          {defaultDistribution.investmentBuckets.map((bucket) => (
+            <Row
+              key={bucket.id}
+              label={bucket.name}
+              value={`${bucket.percentOfInvestments}% · ${
+                bucket.allocationModel === 'CUSTOM'
+                  ? 'Personalizado'
+                  : ALLOCATION_MODELS[bucket.allocationModel].label
+              }`}
+            />
+          ))}
+        </div>
+
         <p className="mt-3 text-gray-600">
           Começamos com <strong>55% essenciais, 10% educação, 10% lazer e 25% investimentos</strong> —
-          um ponto de partida que reserva espaço tanto para crescer (educação) quanto para
-          viver bem no presente (lazer), sem abrir mão de construir patrimônio. Você poderá
-          ajustar esses percentuais quando quiser na tela de Distribuição de Renda.
+          e Caixa da Empresa disponível para quem precisar, ajustável depois na tela de
+          Distribuição de Renda.
         </p>
-      </div>
+      </Card>
     </div>
   )
 }

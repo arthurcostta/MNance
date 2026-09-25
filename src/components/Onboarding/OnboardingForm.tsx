@@ -7,6 +7,9 @@ import Step2Patrimony from './steps/Step2Patrimony'
 import Step3Income from './steps/Step3Income'
 import Step4Paydays from './steps/Step4Paydays'
 import Step5Review from './steps/Step5Review'
+import LoadingState from '../Common/LoadingState'
+import Alert from '../Common/Alert'
+import Button from '../Common/Button'
 
 export default function OnboardingForm() {
   const { user, refreshCurrentUser } = useAuth()
@@ -16,7 +19,7 @@ export default function OnboardingForm() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   if (onboarding.loadingInitial) {
-    return <div className="p-4 text-sm text-gray-500">Carregando...</div>
+    return <LoadingState />
   }
 
   async function handleSave() {
@@ -52,7 +55,7 @@ export default function OnboardingForm() {
           <div
             key={step}
             className={`h-2.5 w-2.5 rounded-full ${
-              step <= onboarding.currentStep ? 'bg-black' : 'bg-gray-200'
+              step <= onboarding.currentStep ? 'bg-primary' : 'bg-gray-200'
             }`}
           />
         ))}
@@ -95,23 +98,22 @@ export default function OnboardingForm() {
         />
       )}
 
-      {saveError && <p className="mt-4 text-sm text-red-600">{saveError}</p>}
+      {saveError && (
+        <div className="mt-4">
+          <Alert variant="error">{saveError}</Alert>
+        </div>
+      )}
 
       <div className="mt-6 flex justify-between">
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={onboarding.prevStep}
           disabled={onboarding.currentStep === 1 || saving}
-          className="rounded border px-4 py-2 disabled:opacity-40"
         >
           Voltar
-        </button>
-        <button
-          type="button"
-          onClick={handlePrimaryAction}
-          disabled={saving}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-60"
-        >
+        </Button>
+        <Button type="button" onClick={handlePrimaryAction} disabled={saving}>
           {onboarding.currentStep === TOTAL_STEPS
             ? saving
               ? 'Salvando...'
@@ -119,7 +121,7 @@ export default function OnboardingForm() {
                 ? 'Atualizar'
                 : 'Confirmar e Salvar'
             : 'Próximo'}
-        </button>
+        </Button>
       </div>
     </div>
   )

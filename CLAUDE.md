@@ -280,4 +280,78 @@ do M4 começar.)*
   pendente de execução pelo usuário — dev server disponível em `http://localhost:5173`
   nesta sessão.
 
+**M5.5 — Fundação de UI/UX + Distribuição Avançada: concluído.**
+- **Fase D (UI/UX):** primeiros componentes compartilhados do projeto, em
+  `components/Common/`: `Button` (variant primary/secondary/danger, unifica os 3
+  padrões de `disabled` que existiam espalhados), `Card`, `Alert` (variant
+  info/success/warning/error, `role="alert"`), `FormField` (render-prop + `useId()`,
+  conecta `aria-invalid`/`aria-describedby` — resolve labels sem `htmlFor` da auditoria),
+  `EmptyState`, `LoadingState` (substitui 4 cópias de "Carregando..."). Token
+  `--color-primary`/`--color-primary-hover` via `@theme` (Tailwind v4) em `index.css`.
+- **Navegação — 1ª da história do app** (achado mais grave da auditoria: 10 de 12 rotas
+  só eram alcançáveis digitando a URL): `components/Layout/navItems.ts` (PRIMARY_NAV +
+  MORE_NAV, 1ª vez que `lucide-react` é usado — dependência ociosa desde o M0),
+  `AppShell.tsx` (sidebar fixa no desktop listando as 9 rotas; barra inferior no mobile
+  com 3 posições + "Mais"), `pages/More.tsx` (lista as 6 rotas ainda-stub). `App.tsx`
+  envolve as rotas protegidas em `AppShell`, exceto `/onboarding` (sem nav — o usuário
+  ainda não tem dados completos).
+- **Migração mecânica** para os novos primitivos: `Login`/`Signup`, todo o fluxo de
+  Onboarding, `Dashboard` + `BudgetAlertBanner`, `Portfolio` + `AssetForm` + `AssetList` +
+  `SeedPatrimonyPrompt`. `BudgetAlertBanner` perdeu o prop `onDismiss` (nunca era passado
+  por nenhum call site — dead code).
+- **Modelo de dados — 2ª reescrita de `Distribution` em 2 milestones (M2→M5→M5.5),**
+  motivada por 4 features priorizadas da planilha pessoal do usuário: Nível 1 vira um
+  `PaydaySplit` de 5 categorias (nova: `companyCashPercent`, default **0%** para todo
+  mundo — decisão corrigida em sessão para não piorar o default de quem não tem empresa)
+  aplicado a 1 ou 2 dias de pagamento (`payday1Split`/`payday2Split` +
+  `payday1IncomeSharePercent`); Nível 2 vira `investmentBuckets: InvestmentBucket[]`
+  (objetivos nomeados, ex. "Casa + Carro 2031", cada um com seu `percentOfInvestments` e
+  seu próprio `allocationModel`) em vez de um único modelo global.
+- `services/distributionService.ts`: `getDefaultDistribution(riskProfile,
+  hasSecondPayday)` ganhou o 2º parâmetro; `useOnboarding.ts` ajustado nos 2 pontos que
+  chamam a função (Onboarding continua só coletando `payday1`/`payday2` — "quanto chega
+  em cada dia" é configurado na tela de Distribuição, não reabre o M2).
+- `hooks/useDistribution.ts` reescrito: `validateNivelUm` agora valida 5 campos;
+  `calculateDistributionAmounts` muda de assinatura (lista de `{split,
+  incomeShareFraction}[]`, agrega por pagamento); novas funções puras
+  `validateInvestmentBuckets`, `calculateBlendedExpectedReturn` (reaproveita
+  `calculateWeightedReturn`, lista vazia → 0, nunca NaN) e `calculateEssentialsComparison`.
+  Guard de compatibilidade `resolveStoredDistribution` com 4 casos (formato novo; M5 flat
+  sem 2º pagamento → converte em memória; M5 flat com 2º pagamento → impossível migrar
+  parcialmente, cai no default novo; M2/corrompido/ausente → default novo) — nunca
+  escreve a conversão de volta sozinho, só até o usuário salvar manualmente.
+  `hasSecondPayday` deriva sempre de `currentUser.payday2`, nunca do documento salvo
+  (protege contra `payday2Split` órfão se o usuário remover o 2º pagamento depois).
+- `components/Distribution/`: `PaydaySplitFields.tsx` (novo, bloco reutilizável de 5
+  inputs, usado 1 ou 2 vezes por `NivelUmForm.tsx` reescrito); `AllocationModelPicker.tsx`
+  refatorado para componente 100% controlado (sem estado/botão próprio, `window.confirm`
+  ao trocar de CUSTOM preservado); `InvestmentBucketsForm.tsx` (novo, piso de 1 objetivo,
+  sem auto-rebalancear ao adicionar).
+- **Nova subcoleção `users/{uid}/essentialExpenses/{itemId}`** (Feature da planilha:
+  lista item a item comparada contra o orçado) — `types/essentialExpense.ts`,
+  `services/essentialExpenseService.ts` (hard delete via `deleteDoc`, diferente do
+  soft-delete de `assetService` — são linhas de orçamento recalculáveis, sem valor
+  histórico), `hooks/useEssentialExpenses.ts`, e
+  `components/Distribution/{EssentialExpenseForm,EssentialExpenseList,
+  EssentialExpensesSection}.tsx`. Vive na tela de Distribuição, não em `/expenses`
+  (reservada para a Feature #6/#9-11, M6.5+) — **atenção para não reaproveitar o nome da
+  coleção `essentialExpenses` para outra finalidade quando M7 for implementado.**
+  `firestore.rules` não mudou (regra genérica de subcoleção já cobre).
+- `hooks/useDashboard.ts` + `pages/Dashboard.tsx`: `distributionSummary` passa a expor
+  `amounts` (5 categorias em R$), `bucketCount` e `expectedReturn` (blended) — os
+  percentuais deixaram de fazer sentido como resumo único desde que os 2 pagamentos podem
+  ter splits diferentes. Card "💎 Distribuição Ativa" atualizado.
+- `components/Onboarding/steps/Step5Review.tsx` reescrito: mostra 1 ou 2 blocos de
+  pagamento + lista de `investmentBuckets` (sempre 1 no momento do onboarding).
+- `npm test`: 128 testes, 14 arquivos (`useDistribution.test.ts` cresceu de 13 para 31
+  casos: 5 `describe`s novos — `validateInvestmentBuckets`, `calculateBlendedExpectedReturn`
+  (regressão vs. M5 confirmada), `resolveStoredDistribution` (os 4 casos de formato),
+  `calculateEssentialsComparison` — e os existentes estendidos para o novo shape).
+  `npm run lint` sem warnings novos além do padrão já existente (`set-state-in-effect` em
+  hooks que pré-populam form a partir do Firestore). `npm run build` sem erros.
+- Verificação manual em navegador (navegação mobile/desktop, formulários com `FormField`,
+  onboarding com 1/2 pagamentos, edição de Nível 1/objetivos/despesas essenciais,
+  documento legado M5, card do Dashboard) pendente de execução pelo usuário — dev server
+  disponível em `http://localhost:5173` nesta sessão.
+
 **Próximo:** M6 — Simulador de Cenários (Feature #3).

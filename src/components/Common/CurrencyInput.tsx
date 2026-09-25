@@ -5,6 +5,8 @@ interface CurrencyInputProps {
   onChange: (value: number) => void
   className?: string
   id?: string
+  'aria-invalid'?: boolean
+  'aria-describedby'?: string
 }
 
 // Máscara de moeda BRL — mesmo padrão usado por apps financeiros (Nubank, Itaú etc.):
@@ -26,7 +28,14 @@ function formatCents(cents: number): string {
   })
 }
 
-export default function CurrencyInput({ value, onChange, className, id }: CurrencyInputProps) {
+export default function CurrencyInput({
+  value,
+  onChange,
+  className,
+  id,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
+}: CurrencyInputProps) {
   const cents = reaisToCents(value)
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
@@ -44,6 +53,8 @@ export default function CurrencyInput({ value, onChange, className, id }: Curren
       onChange={handleChange}
       placeholder="R$ 0,00"
       className={className ?? 'input-field'}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedBy}
     />
   )
 }

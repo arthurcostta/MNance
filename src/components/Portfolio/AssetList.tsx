@@ -1,4 +1,6 @@
 import type { AssetWithId } from '../../types/asset'
+import EmptyState from '../Common/EmptyState'
+import Button from '../Common/Button'
 
 interface AssetListProps {
   assets: AssetWithId[]
@@ -22,11 +24,7 @@ function formatCurrency(value: number): string {
 
 export default function AssetList({ assets, onEdit, onArchive }: AssetListProps) {
   if (assets.length === 0) {
-    return (
-      <div className="rounded border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-600">
-        Nenhum ativo cadastrado ainda.
-      </div>
-    )
+    return <EmptyState title="Nenhum ativo cadastrado ainda." />
   }
 
   const handleArchive = (assetId: string) => {
@@ -52,18 +50,12 @@ export default function AssetList({ assets, onEdit, onArchive }: AssetListProps)
           </div>
 
           <div className="ml-4 flex gap-2">
-            <button
-              onClick={() => onEdit(asset)}
-              className="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
-            >
+            <Button variant="secondary" size="sm" onClick={() => onEdit(asset)}>
               Editar
-            </button>
-            <button
-              onClick={() => handleArchive(asset.id)}
-              className="rounded border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50"
-            >
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => handleArchive(asset.id)}>
               Arquivar
-            </button>
+            </Button>
           </div>
         </div>
       ))}

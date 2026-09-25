@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/* Token único de cor primária (M5.5) — reaproveita o preto já usado em todo o app,
+   só nomeado para os novos componentes compartilhados (Button etc.) não hardcodarem
+   a cor em cada lugar. Sem sistema de tokens de fundo/borda: cores semânticas de
+   alerta ficam centralizadas dentro do componente Alert, não aqui. */
+@theme {
+  --color-primary: #000000;
+  --color-primary-hover: #1f2937;
+}
+
 /* Força tema claro enquanto o Dark Mode (Feature #14, M15) não existe — sem isso,
    o navegador aplica o dark mode do SO de forma inconsistente entre o input/select
    fechado e a lista nativa de opções aberta, quebrando o contraste de leitura. */

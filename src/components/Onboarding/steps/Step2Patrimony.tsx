@@ -1,5 +1,6 @@
 import type { OnboardingData, ValidationErrors } from '../../../hooks/useOnboarding'
 import CurrencyInput from '../../Common/CurrencyInput'
+import FormField from '../../Common/FormField'
 
 interface Step2PatrimonyProps {
   data: OnboardingData
@@ -12,16 +13,15 @@ export default function Step2Patrimony({ data, errors, onUpdateField }: Step2Pat
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Seu patrimônio atual</h2>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Patrimônio atual</label>
-        <CurrencyInput
-          value={data.currentPatrimony}
-          onChange={(value) => onUpdateField('currentPatrimony', value)}
-        />
-        {errors.currentPatrimony && (
-          <p className="mt-1 text-sm text-red-600">{errors.currentPatrimony}</p>
+      <FormField label="Patrimônio atual" error={errors.currentPatrimony}>
+        {(fieldProps) => (
+          <CurrencyInput
+            value={data.currentPatrimony}
+            onChange={(value) => onUpdateField('currentPatrimony', value)}
+            {...fieldProps}
+          />
         )}
-      </div>
+      </FormField>
     </div>
   )
 }

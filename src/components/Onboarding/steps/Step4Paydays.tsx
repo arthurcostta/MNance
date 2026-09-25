@@ -1,4 +1,5 @@
 import type { OnboardingData, ValidationErrors } from '../../../hooks/useOnboarding'
+import FormField from '../../Common/FormField'
 
 interface Step4PaydaysProps {
   data: OnboardingData
@@ -17,41 +18,43 @@ export default function Step4Paydays({ data, errors, onUpdateField }: Step4Payda
         adiantamento e o salário, ou dois pagamentos quinzenais — preencha os dois.
       </p>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Dia do pagamento</label>
-        <p className="mb-1 text-xs text-gray-500">
-          Se você recebe uma vez por mês, é este o dia do seu salário. Se recebe duas
-          vezes, coloque aqui o primeiro (ex.: adiantamento no dia 20).
-        </p>
-        <input
-          type="number"
-          min={1}
-          max={31}
-          value={data.payday1 || ''}
-          onChange={(e) => onUpdateField('payday1', Number(e.target.value))}
-          className="input-field"
-        />
-        {errors.payday1 && <p className="mt-1 text-sm text-red-600">{errors.payday1}</p>}
-      </div>
+      <FormField
+        label="Dia do pagamento"
+        error={errors.payday1}
+        hint="Se você recebe uma vez por mês, é este o dia do seu salário. Se recebe duas vezes, coloque aqui o primeiro (ex.: adiantamento no dia 20)."
+      >
+        {(fieldProps) => (
+          <input
+            type="number"
+            min={1}
+            max={31}
+            value={data.payday1 || ''}
+            onChange={(e) => onUpdateField('payday1', Number(e.target.value))}
+            className="input-field"
+            {...fieldProps}
+          />
+        )}
+      </FormField>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Dia do 2º pagamento (opcional)</label>
-        <p className="mb-1 text-xs text-gray-500">
-          Só preencha se você recebe salário duas vezes por mês (ex.: salário no dia 5,
-          depois do adiantamento do dia 20). Deixe em branco se recebe uma única vez.
-        </p>
-        <input
-          type="number"
-          min={1}
-          max={31}
-          value={data.payday2 ?? ''}
-          onChange={(e) =>
-            onUpdateField('payday2', e.target.value === '' ? null : Number(e.target.value))
-          }
-          className="input-field"
-        />
-        {errors.payday2 && <p className="mt-1 text-sm text-red-600">{errors.payday2}</p>}
-      </div>
+      <FormField
+        label="Dia do 2º pagamento (opcional)"
+        error={errors.payday2}
+        hint="Só preencha se você recebe salário duas vezes por mês (ex.: salário no dia 5, depois do adiantamento do dia 20). Deixe em branco se recebe uma única vez."
+      >
+        {(fieldProps) => (
+          <input
+            type="number"
+            min={1}
+            max={31}
+            value={data.payday2 ?? ''}
+            onChange={(e) =>
+              onUpdateField('payday2', e.target.value === '' ? null : Number(e.target.value))
+            }
+            className="input-field"
+            {...fieldProps}
+          />
+        )}
+      </FormField>
     </div>
   )
 }

@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
-import { useDistribution } from './useDistribution'
-import { ALLOCATION_MODELS } from '../core/allocationModels'
+import { useDistribution, type DistributionAmounts } from './useDistribution'
 import { calculateGoalTimeline, type GoalTimelineResult } from '../core/goalTimeline'
 import { calculateProjection } from '../core/projection'
 import { annualToMonthlyRate } from '../core/compoundInterest'
@@ -80,11 +79,8 @@ export interface ProjectionPoint {
 }
 
 export interface DistributionSummary {
-  essentialsPercent: number
-  educationPercent: number
-  leisurePercent: number
-  investmentsPercent: number
-  modelLabel: string
+  amounts: DistributionAmounts
+  bucketCount: number
   expectedReturn: number
 }
 
@@ -140,17 +136,10 @@ export function useDashboard() {
 
   const distributionSummary = useMemo<DistributionSummary | null>(() => {
     if (!currentUser || distribution.loading) return null
-    const modelLabel =
-      distribution.modelChoice === 'CUSTOM'
-        ? 'Personalizado'
-        : ALLOCATION_MODELS[distribution.modelChoice].label
     return {
-      essentialsPercent: distribution.nivelUm.essentialsPercent,
-      educationPercent: distribution.nivelUm.educationPercent,
-      leisurePercent: distribution.nivelUm.leisurePercent,
-      investmentsPercent: distribution.nivelUm.investmentsPercent,
-      modelLabel,
-      expectedReturn: distribution.expectedReturn,
+      amounts: distribution.amounts,
+      bucketCount: distribution.investmentBuckets.length,
+      expectedReturn: distribution.blendedExpectedReturn,
     }
   }, [currentUser, distribution])
 

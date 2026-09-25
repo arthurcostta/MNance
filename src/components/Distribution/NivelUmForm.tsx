@@ -1,94 +1,117 @@
 import { useState } from 'react'
-import {
-  calculateDistributionAmounts,
-  validateNivelUm,
-  type NivelUmErrors,
-  type NivelUmInput,
-} from '../../hooks/useDistribution'
+import { validateNivelUm, type NivelUmErrors, type NivelUmInput } from '../../hooks/useDistribution'
+import type { PaydaySplit } from '../../types/distribution'
+import PaydaySplitFields from './PaydaySplitFields'
+import FormField from '../Common/FormField'
+import Button from '../Common/Button'
 
 interface NivelUmFormProps {
-  initialValue: NivelUmInput
+  hasSecondPayday: boolean
+  initialPayday1: PaydaySplit
+  initialPayday2?: PaydaySplit
+  initialIncomeSharePercent?: number
   monthlyIncomeNet: number
-  onSave: (values: NivelUmInput) => void | Promise<void>
+  onSave: (payload: {
+    payday1Split: PaydaySplit
+    payday2Split?: PaydaySplit
+    payday1IncomeSharePercent?: number
+  }) => void | Promise<void>
   isSaving?: boolean
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const FALLBACK_SPLIT: PaydaySplit = {
+  essentialsPercent: 55,
+  educationPercent: 10,
+  leisurePercent: 10,
+  investmentsPercent: 25,
+  companyCashPercent: 0,
 }
 
-const FIELDS: { key: keyof NivelUmInput; label: string; amountKey: keyof ReturnType<typeof calculateDistributionAmounts> }[] = [
-  { key: 'essentialsPercent', label: 'Despesas Essenciais', amountKey: 'essentials' },
-  { key: 'educationPercent', label: 'Educação', amountKey: 'education' },
-  { key: 'leisurePercent', label: 'Lazer', amountKey: 'leisure' },
-  { key: 'investmentsPercent', label: 'Investimentos', amountKey: 'investments' },
-]
-
 export default function NivelUmForm({
-  initialValue,
+  hasSecondPayday,
+  initialPayday1,
+  initialPayday2,
+  initialIncomeSharePercent,
   monthlyIncomeNet,
   onSave,
   isSaving = false,
 }: NivelUmFormProps) {
-  const [input, setInput] = useState<NivelUmInput>(initialValue)
-  const [errors, setErrors] = useState<NivelUmErrors>({})
+  const [payday1, setPayday1] = useState<NivelUmInput>(initialPayday1)
+  const [payday2, setPayday2] = useState<NivelUmInput>(initialPayday2 ?? FALLBACK_SPLIT)
+  const [incomeSharePercent, setIncomeSharePercent] = useState(initialIncomeSharePercent ?? 50)
+  const [errors1, setErrors1] = useState<NivelUmErrors>({})
+  const [errors2, setErrors2] = useState<NivelUmErrors>({})
 
-  const total =
-    input.essentialsPercent + input.educationPercent + input.leisurePercent + input.investmentsPercent
-  const amounts = calculateDistributionAmounts(input, monthlyIncomeNet)
+  const payday1Income = monthlyIncomeNet * (hasSecondPayday ? incomeSharePercent / 100 : 1)
+  const payday2Income = monthlyIncomeNet * (1 - incomeSharePercent / 100)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const stepErrors = validateNivelUm(input)
-    if (Object.keys(stepErrors).length > 0) {
-      setErrors(stepErrors)
-      return
-    }
-    setErrors({})
-    await onSave(input)
-  }
+    const nextErrors1 = validateNivelUm(payday1)
+    const nextErrors2 = hasSecondPayday ? validateNivelUm(payday2) : {}
+    setErrors1(nextErrors1)
+    setErrors2(nextErrors2)
+    if (Object.keys(nextErrors1).length > 0 || Object.keys(nextErrors2).length > 0) return
 
-  const updateField = (key: keyof NivelUmInput, value: number) => {
-    setInput((prev) => ({ ...prev, [key]: value }))
-    setErrors((prev) => ({ ...prev, [key]: undefined, total: undefined }))
+    await onSave({
+      payday1Split: payday1,
+      ...(hasSecondPayday
+        ? { payday2Split: payday2, payday1IncomeSharePercent: incomeSharePercent }
+        : {}),
+    })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <h2 className="text-lg font-semibold">Nível 1 — Divisão da renda</h2>
 
-      {FIELDS.map(({ key, label, amountKey }) => (
-        <div key={key}>
-          <label className="mb-1 block text-sm font-medium">{label} (%)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            max="100"
-            value={input[key]}
-            onChange={(e) => updateField(key, parseFloat(e.target.value) || 0)}
-            className="input-field"
-          />
-          <p className="mt-1 text-xs text-gray-500">{formatCurrency(amounts[amountKey])}/mês</p>
-          {errors[key] && <p className="mt-1 text-sm text-red-600">{errors[key]}</p>}
-        </div>
-      ))}
+      {hasSecondPayday && (
+        <FormField
+          label="% da renda que chega no 1º pagamento"
+          hint={`O restante (${(100 - incomeSharePercent).toFixed(0)}%) chega no 2º pagamento — sem validação de soma, é só um número e seu complemento.`}
+        >
+          {(fieldProps) => (
+            <input
+              type="number"
+              step="1"
+              min="0"
+              max="100"
+              value={incomeSharePercent}
+              onChange={(e) => setIncomeSharePercent(parseFloat(e.target.value) || 0)}
+              className="input-field"
+              {...fieldProps}
+            />
+          )}
+        </FormField>
+      )}
 
-      <div
-        className={`rounded border p-3 text-sm font-medium ${
-          errors.total ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50'
-        }`}
-      >
-        Soma: {total.toFixed(1)}%{errors.total && <p className="mt-1 font-normal">{errors.total}</p>}
-      </div>
+      <PaydaySplitFields
+        title={hasSecondPayday ? '1º pagamento' : 'Divisão mensal'}
+        value={payday1}
+        errors={errors1}
+        paydayIncome={payday1Income}
+        onChange={(next) => {
+          setPayday1(next)
+          setErrors1({})
+        }}
+      />
 
-      <button
-        type="submit"
-        disabled={isSaving}
-        className="rounded bg-black px-4 py-2 text-white disabled:bg-gray-400"
-      >
+      {hasSecondPayday && (
+        <PaydaySplitFields
+          title="2º pagamento"
+          value={payday2}
+          errors={errors2}
+          paydayIncome={payday2Income}
+          onChange={(next) => {
+            setPayday2(next)
+            setErrors2({})
+          }}
+        />
+      )}
+
+      <Button type="submit" disabled={isSaving}>
         {isSaving ? 'Salvando...' : 'Salvar Nível 1'}
-      </button>
+      </Button>
     </form>
   )
 }

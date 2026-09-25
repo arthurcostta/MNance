@@ -3,6 +3,8 @@ import { ASSET_RETURN_RATES } from '../../core/assetReturnRates'
 import { validateAssetForm, type AssetFormInput, type AssetFormMode, type AssetFormErrors } from '../../hooks/usePortfolio'
 import type { AssetWithId } from '../../types/asset'
 import CurrencyInput from '../Common/CurrencyInput'
+import FormField from '../Common/FormField'
+import Button from '../Common/Button'
 
 interface AssetFormProps {
   mode: AssetFormMode
@@ -79,43 +81,42 @@ export default function AssetForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Nome do ativo */}
-      <div>
-        <label className="mb-1 block text-sm font-medium">Nome do ativo</label>
-        <input
-          type="text"
-          value={input.name}
-          onChange={(e) => {
-            setInput((prev) => ({ ...prev, name: e.target.value }))
-            setErrors((prev) => ({ ...prev, name: undefined }))
-          }}
-          placeholder="Ex: Tesouro Selic, Ação Petrobras"
-          className="input-field"
-        />
-        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-      </div>
-
-      {/* Seletor de instrumento (só em add/seed) */}
-      {(mode === 'add' || mode === 'seed') && (
-        <div>
-          <label className="mb-1 block text-sm font-medium">Tipo de instrumento</label>
-          <select
-            value={input.instrumentKey ?? ''}
-            onChange={(e) => handleInstrumentChange(e.target.value)}
+      <FormField label="Nome do ativo" error={errors.name}>
+        {(fieldProps) => (
+          <input
+            type="text"
+            value={input.name}
+            onChange={(e) => {
+              setInput((prev) => ({ ...prev, name: e.target.value }))
+              setErrors((prev) => ({ ...prev, name: undefined }))
+            }}
+            placeholder="Ex: Tesouro Selic, Ação Petrobras"
             className="input-field"
-          >
-            <option value="">Escolha um instrumento...</option>
-            {Object.entries(ASSET_RETURN_RATES).map(([key, rate]) => (
-              <option key={key} value={key}>
-                {rate.label} ({(rate.annualRate * 100).toFixed(1)}%)
-              </option>
-            ))}
-          </select>
-          {errors.instrumentKey && <p className="mt-1 text-sm text-red-600">{errors.instrumentKey}</p>}
-        </div>
+            {...fieldProps}
+          />
+        )}
+      </FormField>
+
+      {(mode === 'add' || mode === 'seed') && (
+        <FormField label="Tipo de instrumento" error={errors.instrumentKey}>
+          {(fieldProps) => (
+            <select
+              value={input.instrumentKey ?? ''}
+              onChange={(e) => handleInstrumentChange(e.target.value)}
+              className="input-field"
+              {...fieldProps}
+            >
+              <option value="">Escolha um instrumento...</option>
+              {Object.entries(ASSET_RETURN_RATES).map(([key, rate]) => (
+                <option key={key} value={key}>
+                  {rate.label} ({(rate.annualRate * 100).toFixed(1)}%)
+                </option>
+              ))}
+            </select>
+          )}
+        </FormField>
       )}
 
-      {/* Classe de ativo (read-only em edit) */}
       {mode === 'edit' ? (
         <div>
           <label className="mb-1 block text-sm font-medium">Classe de ativo</label>
@@ -125,57 +126,45 @@ export default function AssetForm({
         </div>
       ) : null}
 
-      {/* Valor atual */}
-      <div>
-        <label className="mb-1 block text-sm font-medium">Valor atual</label>
-        <CurrencyInput
-          value={input.currentValue}
-          onChange={(value) => {
-            setInput((prev) => ({ ...prev, currentValue: value }))
-            setErrors((prev) => ({ ...prev, currentValue: undefined }))
-          }}
-        />
-        {errors.currentValue && <p className="mt-1 text-sm text-red-600">{errors.currentValue}</p>}
-      </div>
-
-      {/* Taxa de retorno esperada */}
-      <div>
-        <label className="mb-1 block text-sm font-medium">Taxa de retorno anual (%)</label>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          max="200"
-          value={input.expectedReturnRatePercent}
-          onChange={(e) => {
-            setInput((prev) => ({ ...prev, expectedReturnRatePercent: parseFloat(e.target.value) || 0 }))
-            setErrors((prev) => ({ ...prev, expectedReturnRatePercent: undefined }))
-          }}
-          placeholder="0.00"
-          className="input-field"
-        />
-        {errors.expectedReturnRatePercent && (
-          <p className="mt-1 text-sm text-red-600">{errors.expectedReturnRatePercent}</p>
+      <FormField label="Valor atual" error={errors.currentValue}>
+        {(fieldProps) => (
+          <CurrencyInput
+            value={input.currentValue}
+            onChange={(value) => {
+              setInput((prev) => ({ ...prev, currentValue: value }))
+              setErrors((prev) => ({ ...prev, currentValue: undefined }))
+            }}
+            {...fieldProps}
+          />
         )}
-      </div>
+      </FormField>
 
-      {/* Ações */}
+      <FormField label="Taxa de retorno anual (%)" error={errors.expectedReturnRatePercent}>
+        {(fieldProps) => (
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="200"
+            value={input.expectedReturnRatePercent}
+            onChange={(e) => {
+              setInput((prev) => ({ ...prev, expectedReturnRatePercent: parseFloat(e.target.value) || 0 }))
+              setErrors((prev) => ({ ...prev, expectedReturnRatePercent: undefined }))
+            }}
+            placeholder="0.00"
+            className="input-field"
+            {...fieldProps}
+          />
+        )}
+      </FormField>
+
       <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex-1 rounded bg-black px-4 py-2 text-white disabled:bg-gray-400"
-        >
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
           {isSubmitting ? 'Salvando...' : submitLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="flex-1 rounded border border-gray-300 px-4 py-2 disabled:border-gray-200 disabled:text-gray-400"
-        >
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting} className="flex-1">
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )

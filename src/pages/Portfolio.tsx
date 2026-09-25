@@ -6,6 +6,10 @@ import { updateUserDocument } from '../services/userService'
 import AssetForm from '../components/Portfolio/AssetForm'
 import AssetList from '../components/Portfolio/AssetList'
 import SeedPatrimonyPrompt from '../components/Portfolio/SeedPatrimonyPrompt'
+import Card from '../components/Common/Card'
+import Button from '../components/Common/Button'
+import Alert from '../components/Common/Alert'
+import LoadingState from '../components/Common/LoadingState'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -23,7 +27,7 @@ export default function Portfolio() {
   const [formSubmitting, setFormSubmitting] = useState(false)
 
   if (portfolio.loadingInitial) {
-    return <div className="p-4 text-sm text-gray-500">Carregando portfólio...</div>
+    return <LoadingState label="Carregando portfólio..." />
   }
 
   const showSeedBanner =
@@ -103,21 +107,19 @@ export default function Portfolio() {
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-semibold">Portfólio Total</h1>
 
-      {/* Stat blocks */}
       <div className="mb-6 grid grid-cols-2 gap-4">
-        <div className="rounded border border-gray-200 bg-white p-4">
+        <Card>
           <p className="text-xs font-medium text-gray-600">Valor Total Investido</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(portfolio.totalValue)}</p>
-        </div>
-        <div className="rounded border border-gray-200 bg-white p-4">
+        </Card>
+        <Card>
           <p className="text-xs font-medium text-gray-600">Retorno Ponderado</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">
             {portfolio.totalValue > 0 ? `${(portfolio.weightedReturn * 100).toFixed(2)}% a.a.` : '—'}
           </p>
-        </div>
+        </Card>
       </div>
 
-      {/* Seed banner */}
       {showSeedBanner && (
         <SeedPatrimonyPrompt
           amount={currentUser?.currentPatrimony || 0}
@@ -127,9 +129,8 @@ export default function Portfolio() {
         />
       )}
 
-      {/* Form ou lista */}
       {formMode !== 'closed' ? (
-        <div className="mb-6 rounded border border-gray-200 bg-white p-4">
+        <Card className="mb-6">
           <h2 className="mb-4 text-lg font-semibold">
             {formMode === 'add' ? 'Adicionar Ativo' : formMode === 'seed' ? 'Criar Ativo Inicial' : 'Editar Ativo'}
           </h2>
@@ -144,20 +145,21 @@ export default function Portfolio() {
             onCancel={handleFormCancel}
             isSubmitting={formSubmitting}
           />
-        </div>
+        </Card>
       ) : (
         <>
-          <button
-            onClick={() => setFormMode('add')}
-            className="mb-6 rounded bg-black px-4 py-2 text-white"
-          >
+          <Button onClick={() => setFormMode('add')} className="mb-6">
             + Adicionar Ativo
-          </button>
+          </Button>
           <AssetList assets={portfolio.assets} onEdit={handleEdit} onArchive={handleArchive} />
         </>
       )}
 
-      {portfolio.actionError && <p className="mt-4 text-sm text-red-600">{portfolio.actionError}</p>}
+      {portfolio.actionError && (
+        <div className="mt-4">
+          <Alert variant="error">{portfolio.actionError}</Alert>
+        </div>
+      )}
     </div>
   )
 }

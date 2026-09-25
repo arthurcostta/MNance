@@ -1,26 +1,34 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useDistribution, type NivelUmInput } from '../hooks/useDistribution'
-import type { CustomAllocation, DistributionModelChoice } from '../types/distribution'
+import { useDistribution } from '../hooks/useDistribution'
+import type { PaydaySplit, InvestmentBucket } from '../types/distribution'
 import NivelUmForm from '../components/Distribution/NivelUmForm'
-import AllocationModelPicker from '../components/Distribution/AllocationModelPicker'
+import InvestmentBucketsForm from '../components/Distribution/InvestmentBucketsForm'
 import EmergencyReserveCard from '../components/Distribution/EmergencyReserveCard'
+import EssentialExpensesSection from '../components/Distribution/EssentialExpensesSection'
+import Card from '../components/Common/Card'
+import Alert from '../components/Common/Alert'
+import LoadingState from '../components/Common/LoadingState'
 
 export default function Distribution() {
   const { user, currentUser } = useAuth()
   const distribution = useDistribution(user?.uid)
 
   const [savingNivelUm, setSavingNivelUm] = useState(false)
-  const [savingNivelDois, setSavingNivelDois] = useState(false)
+  const [savingBuckets, setSavingBuckets] = useState(false)
 
   if (distribution.loading || !currentUser) {
-    return <div className="p-4 text-sm text-gray-500">Carregando distribuição...</div>
+    return <LoadingState label="Carregando distribuição..." />
   }
 
-  const handleSaveNivelUm = async (values: NivelUmInput) => {
+  const handleSaveNivelUm = async (payload: {
+    payday1Split: PaydaySplit
+    payday2Split?: PaydaySplit
+    payday1IncomeSharePercent?: number
+  }) => {
     setSavingNivelUm(true)
     try {
-      await distribution.saveNivelUm(values)
+      await distribution.saveNivelUm(payload)
     } catch (error) {
       console.error('Erro ao salvar Nível 1:', error)
     } finally {
@@ -28,58 +36,68 @@ export default function Distribution() {
     }
   }
 
-  const handleSaveNivelDois = async (choice: DistributionModelChoice, custom?: CustomAllocation) => {
-    setSavingNivelDois(true)
+  const handleSaveBuckets = async (buckets: InvestmentBucket[]) => {
+    setSavingBuckets(true)
     try {
-      await distribution.saveNivelDois(choice, custom)
+      await distribution.saveInvestmentBuckets(buckets)
     } catch (error) {
-      console.error('Erro ao salvar Nível 2:', error)
+      console.error('Erro ao salvar objetivos de investimento:', error)
     } finally {
-      setSavingNivelDois(false)
+      setSavingBuckets(false)
     }
   }
 
-  const { goalCheck, expectedReturn } = distribution
+  const { goalCheck, blendedExpectedReturn } = distribution
 
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-semibold">Distribuição de Renda</h1>
 
-      <div className="mb-6 rounded border border-gray-200 bg-white p-4">
+      <Card className="mb-6">
         <NivelUmForm
-          initialValue={distribution.nivelUm}
+          hasSecondPayday={distribution.hasSecondPayday}
+          initialPayday1={distribution.payday1Split}
+          initialPayday2={distribution.payday2Split}
+          initialIncomeSharePercent={distribution.payday1IncomeSharePercent}
           monthlyIncomeNet={currentUser.monthlyIncomeNet}
           onSave={handleSaveNivelUm}
           isSaving={savingNivelUm}
         />
-      </div>
+      </Card>
 
-      <div className="mb-6 rounded border border-gray-200 bg-white p-4">
-        <AllocationModelPicker
-          modelChoice={distribution.modelChoice}
-          customAllocation={distribution.customAllocation}
-          onSave={handleSaveNivelDois}
-          isSaving={savingNivelDois}
+      <Card className="mb-6">
+        <InvestmentBucketsForm
+          initialBuckets={distribution.investmentBuckets}
+          onSave={handleSaveBuckets}
+          isSaving={savingBuckets}
         />
-      </div>
+      </Card>
 
       <div className="mb-6">
         <EmergencyReserveCard reserve={distribution.emergencyReserve} />
       </div>
 
+      <div className="mb-6">
+        <EssentialExpensesSection uid={user?.uid} essentialsBudget={distribution.amounts.essentials} />
+      </div>
+
       {goalCheck && (
-        <div className="mb-6 rounded border border-gray-200 bg-white p-4 text-sm">
-          Retorno esperado: <span className="font-medium">{(expectedReturn * 100).toFixed(1)}% a.a.</span>
+        <Card className="mb-6 text-sm">
+          Retorno esperado: <span className="font-medium">{(blendedExpectedReturn * 100).toFixed(1)}% a.a.</span>
           {' — '}
           {goalCheck.reachable ? (
             <span className="font-medium text-green-700">bate sua meta ✅</span>
           ) : (
             <span className="font-medium text-amber-700">não bate sua meta dentro de {goalCheck.capYears} anos</span>
           )}
-        </div>
+        </Card>
       )}
 
-      {distribution.actionError && <p className="mt-4 text-sm text-red-600">{distribution.actionError}</p>}
+      {distribution.actionError && (
+        <div className="mt-4">
+          <Alert variant="error">{distribution.actionError}</Alert>
+        </div>
+      )}
     </div>
   )
 }

@@ -4,6 +4,9 @@ import { useDashboard } from '../hooks/useDashboard'
 import type { GoalTimelineResult } from '../core/goalTimeline'
 import BudgetAlertBanner from '../components/Dashboard/BudgetAlertBanner'
 import ProjectionChart from '../components/Dashboard/ProjectionChart'
+import Card from '../components/Common/Card'
+import Alert from '../components/Common/Alert'
+import LoadingState from '../components/Common/LoadingState'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -35,7 +38,7 @@ export default function Dashboard() {
     useDashboard()
 
   if (loading || !metrics || !currentUser) {
-    return <div className="p-4 text-sm text-gray-500">Carregando radar de patrimônio...</div>
+    return <LoadingState label="Carregando radar de patrimônio..." />
   }
 
   const { base, boosted, showBoostInsight, velocity, monthlyContribution, budgetAlert } = metrics
@@ -45,71 +48,84 @@ export default function Dashboard() {
       <h1 className="mb-6 text-2xl font-semibold">Radar de Patrimônio</h1>
 
       {budgetAlert && (
-        <BudgetAlertBanner
-          essentialMonthlyCost={currentUser.essentialMonthlyCost}
-          monthlyIncomeNet={currentUser.monthlyIncomeNet}
-        />
+        <div className="mb-6">
+          <BudgetAlertBanner
+            essentialMonthlyCost={currentUser.essentialMonthlyCost}
+            monthlyIncomeNet={currentUser.monthlyIncomeNet}
+          />
+        </div>
       )}
 
       {!hasAssets && (
-        <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-          Você ainda não tem ativos cadastrados — os números abaixo consideram patrimônio zero.{' '}
-          <Link to="/portfolio" className="font-medium text-blue-600 hover:underline">
-            Cadastre seus ativos no Portfólio
-          </Link>{' '}
-          para um Radar preciso.
+        <div className="mb-6">
+          <Alert variant="info">
+            Você ainda não tem ativos cadastrados — os números abaixo consideram patrimônio zero.{' '}
+            <Link to="/portfolio" className="font-medium underline">
+              Cadastre seus ativos no Portfólio
+            </Link>{' '}
+            para um Radar preciso.
+          </Alert>
         </div>
       )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded border border-gray-200 bg-white p-4">
+        <Card>
           <p className="text-xs font-medium text-gray-600">Patrimônio Atual</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(currentPatrimony)}</p>
-        </div>
-        <div className="rounded border border-gray-200 bg-white p-4">
+        </Card>
+        <Card>
           <p className="text-xs font-medium text-gray-600">Velocidade de Crescimento</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(velocity)}/mês</p>
-        </div>
-        <div className="rounded border border-gray-200 bg-white p-4">
+        </Card>
+        <Card>
           <p className="text-xs font-medium text-gray-600">Tempo até a Meta</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">{formatTimeToGoal(base)}</p>
-        </div>
+        </Card>
       </div>
 
       {!base.reachable && (
-        <div className="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800">
-          Essa meta, do jeito que está, levaria mais de {base.capYears} anos para se realizar. Vamos
-          ajustar alguma variável — aporte, prazo ou meta — para encontrar um caminho mais realista?
+        <div className="mb-6">
+          <Alert variant="warning">
+            Essa meta, do jeito que está, levaria mais de {base.capYears} anos para se realizar. Vamos
+            ajustar alguma variável — aporte, prazo ou meta — para encontrar um caminho mais realista?
+          </Alert>
         </div>
       )}
 
       {showBoostInsight && boosted && (
-        <div className="mb-6 rounded border border-green-200 bg-green-50 p-4 text-sm text-gray-800">
-          Aumentando seu aporte mensal em 20% (de {formatCurrency(monthlyContribution)} para{' '}
-          {formatCurrency(monthlyContribution * 1.2)}), você chegaria à meta em{' '}
-          <span className="font-semibold">{formatTimeToGoal(boosted)}</span> em vez de{' '}
-          <span className="font-semibold">{formatTimeToGoal(base)}</span>.
+        <div className="mb-6">
+          <Alert variant="success">
+            Aumentando seu aporte mensal em 20% (de {formatCurrency(monthlyContribution)} para{' '}
+            {formatCurrency(monthlyContribution * 1.2)}), você chegaria à meta em{' '}
+            <span className="font-semibold">{formatTimeToGoal(boosted)}</span> em vez de{' '}
+            <span className="font-semibold">{formatTimeToGoal(base)}</span>.
+          </Alert>
         </div>
       )}
 
       <ProjectionChart series={chartSeries} showBoosted={showBoostInsight} />
 
       {distributionSummary && (
-        <div className="mt-6 rounded border border-gray-200 bg-white p-4">
+        <Card className="mt-6">
           <p className="mb-2 text-xs font-medium text-gray-600">💎 Distribuição Ativa</p>
-          <p className="text-sm text-gray-800">
-            Essenciais {distributionSummary.essentialsPercent}% · Educação{' '}
-            {distributionSummary.educationPercent}% · Lazer {distributionSummary.leisurePercent}% ·
-            Investimentos {distributionSummary.investmentsPercent}%
-          </p>
-          <p className="mt-1 text-sm text-gray-800">
-            Modelo: <span className="font-medium">{distributionSummary.modelLabel}</span> — retorno
-            esperado {(distributionSummary.expectedReturn * 100).toFixed(1)}% a.a.
+          <div className="space-y-1 text-sm text-gray-800">
+            <p>Essenciais {formatCurrency(distributionSummary.amounts.essentials)}</p>
+            <p>Educação {formatCurrency(distributionSummary.amounts.education)}</p>
+            <p>Lazer {formatCurrency(distributionSummary.amounts.leisure)}</p>
+            <p>Investimentos {formatCurrency(distributionSummary.amounts.investments)}</p>
+            {distributionSummary.amounts.companyCash > 0 && (
+              <p>Caixa da Empresa {formatCurrency(distributionSummary.amounts.companyCash)}</p>
+            )}
+          </div>
+          <p className="mt-2 text-sm text-gray-800">
+            {distributionSummary.bucketCount}{' '}
+            {distributionSummary.bucketCount === 1 ? 'objetivo de investimento' : 'objetivos de investimento'}{' '}
+            — retorno esperado {(distributionSummary.expectedReturn * 100).toFixed(1)}% a.a.
           </p>
           <Link to="/distribution" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
             Editar distribuição
           </Link>
-        </div>
+        </Card>
       )}
     </div>
   )

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { OnboardingData, ValidationErrors } from '../../../hooks/useOnboarding'
 import type { EmergencyReserveResult } from '../../../core/emergencyReserve'
 import CurrencyInput from '../../Common/CurrencyInput'
+import FormField from '../../Common/FormField'
+import Card from '../../Common/Card'
 
 interface Step3IncomeProps {
   data: OnboardingData
@@ -26,30 +28,28 @@ export default function Step3Income({
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Sua renda</h2>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Renda líquida mensal</label>
-        <CurrencyInput
-          value={data.monthlyIncomeNet}
-          onChange={(value) => onUpdateField('monthlyIncomeNet', value)}
-        />
-        {errors.monthlyIncomeNet && (
-          <p className="mt-1 text-sm text-red-600">{errors.monthlyIncomeNet}</p>
+      <FormField label="Renda líquida mensal" error={errors.monthlyIncomeNet}>
+        {(fieldProps) => (
+          <CurrencyInput
+            value={data.monthlyIncomeNet}
+            onChange={(value) => onUpdateField('monthlyIncomeNet', value)}
+            {...fieldProps}
+          />
         )}
-      </div>
+      </FormField>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Custo essencial mensal</label>
-        <CurrencyInput
-          value={data.essentialMonthlyCost}
-          onChange={(value) => onUpdateField('essentialMonthlyCost', value)}
-        />
-        {errors.essentialMonthlyCost && (
-          <p className="mt-1 text-sm text-red-600">{errors.essentialMonthlyCost}</p>
+      <FormField label="Custo essencial mensal" error={errors.essentialMonthlyCost}>
+        {(fieldProps) => (
+          <CurrencyInput
+            value={data.essentialMonthlyCost}
+            onChange={(value) => onUpdateField('essentialMonthlyCost', value)}
+            {...fieldProps}
+          />
         )}
-      </div>
+      </FormField>
 
       {data.monthlyIncomeNet > 0 && (
-        <div className="rounded border bg-gray-50 p-3 text-sm">
+        <Card className="bg-gray-50 text-sm">
           <div className="flex items-center justify-between">
             <span className="font-medium">Sua reserva de emergência</span>
             <button
@@ -69,7 +69,7 @@ export default function Step3Income({
               reserva precisa sustentar sua renda de verdade.
             </p>
           )}
-        </div>
+        </Card>
       )}
     </div>
   )
