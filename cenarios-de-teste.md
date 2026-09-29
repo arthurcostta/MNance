@@ -13,6 +13,13 @@ como checklist vivo: ao fechar cada milestone, rode os cenários que ele desbloq
 desktop com o DevTools aberto na aba Console. "Sem console errors" é critério
 implícito de aprovação em **todos** os cenários.
 
+**Cobertura:** as seções 1 a 11 (cenários 01–70) foram escritas no M0/M1 e cobrem o
+roadmap M0–M15 conforme planejado na época. As seções 12 a 16 (cenários 71–112) foram
+acrescentadas depois do M5.6 e cobrem o que M5.5/M5.6 efetivamente entregaram —
+navegação, primitivos de UI, Nível 1 por dia de pagamento, valor recebido em R$,
+objetivos de investimento e despesas essenciais detalhadas. Onde as duas partes se
+sobrepõem, vale a mais recente (ver a nota na seção 6).
+
 ---
 
 ## 1. Autenticação e Sessão
@@ -565,6 +572,15 @@ crescimento) gera `Infinity`.
 ---
 
 ## 6. Distribuição de Renda (Feature #13) e Alocação (Feature #7)
+
+> **Atualizado em M5.5/M5.6:** os cenários 36–41 foram escritos contra a tela do M5 (um
+> único split de 4 categorias + um único modelo de alocação global). Essa tela não existe
+> mais: o Nível 1 virou um split de **5 categorias por dia de pagamento** e o Nível 2 virou
+> uma **lista de objetivos**, cada um com seu próprio modelo. As regras de negócio que 36–41
+> testam (soma = 100%, tolerância de ponto flutuante, não perder a customização, percentuais
+> dos modelos, reserva somente leitura) continuam valendo — mas os roteiros atualizados estão
+> nas **seções 12 a 16**. Rode 36–41 apenas como referência histórica da regra; rode as
+> seções 13–15 para validar a tela real.
 
 ### CENÁRIO 36: Distribuição soma exatamente 100% `[M5]`
 
@@ -1124,6 +1140,765 @@ e a diferença corresponde ao que o simulador de cortes prometeu. Todos os dados
 ao ciclo de logout/login. Zero erros no console durante a jornada inteira. **Este é o
 cenário de aceitação do MVP** — se ele passa ponta a ponta, o produto entrega a promessa
 central: "se eu mantiver isso, quantos anos até ficar rico?".
+
+---
+
+## 12. Navegação e Fundação de UI (M5.5)
+
+### CENÁRIO 71: Barra de navegação inferior no mobile `[M5.5 · executável hoje]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Onboarding concluído. DevTools em 375px de largura.
+**Passos:**
+1. Abrir o app logado. Conferir a barra fixa no rodapé.
+2. Tocar em cada uma das 4 posições: Radar, Distribuição, Portfólio, Mais.
+3. Em `/more`, tocar em cada uma das 6 entradas listadas.
+
+**Resultado esperado:** A barra inferior tem exatamente 4 posições (`PRIMARY_NAV` + "Mais").
+A posição da rota atual fica em preto/negrito e as demais em cinza. `/more` lista Simulador,
+Despesas, Parcelas, Agenda, Relatório e Configurações — as 6 rotas que ainda são stub, mas
+todas devem abrir sem erro de rota. Antes do M5.5 nenhuma dessas telas era alcançável sem
+digitar a URL à mão; se alguma some da lista, a regressão é em `src/components/Layout/navItems.ts`.
+
+---
+
+### CENÁRIO 72: Sidebar no desktop lista as 9 rotas `[M5.5 · executável hoje]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Janela em 1280px.
+**Passos:**
+1. Conferir a sidebar fixa à esquerda.
+2. Navegar para `/distribution` e observar o destaque da rota ativa.
+3. Navegar para `/portfolio` e voltar para `/` pelo item "Radar".
+
+**Resultado esperado:** A sidebar lista as 9 rotas (`ALL_NAV`) sem agrupamento em "Mais" —
+"Mais" é só uma limitação de espaço do mobile. Só o item da rota atual fica destacado. Em `/`
+apenas "Radar" fica ativo: o item usa `end` para casar exatamente a raiz, então estar em
+`/distribution` **não** pode acender também o "Radar" (o bug clássico de `NavLink` sem `end`).
+
+---
+
+### CENÁRIO 73: Onboarding não mostra navegação `[M5.5 · executável hoje]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta nova, sem onboarding concluído.
+**Passos:**
+1. Cadastrar e chegar em `/onboarding`.
+2. Conferir se existe barra inferior (mobile) ou sidebar (desktop).
+3. Concluir o onboarding e conferir a navegação no Dashboard.
+
+**Resultado esperado:** Nenhuma navegação durante o onboarding — `AppShell` envolve as rotas
+protegidas **exceto** `/onboarding`, de propósito: sem os dados coletados, as outras telas não
+teriam o que mostrar. Assim que o onboarding conclui e cai no Dashboard, a navegação aparece.
+
+---
+
+### CENÁRIO 74: Clicar no label foca o input `[M5.5 · executável hoje]`
+
+**Categoria:** Interação
+**Pré-condições:** Em `/distribution`.
+**Passos:**
+1. Clicar no **texto** "Despesas Essenciais (%)" (não no campo).
+2. Repetir em "Nome do objetivo" e no campo de salário líquido.
+3. Navegar o formulário só com Tab e conferir se o leitor de tela anunciaria o erro (checar
+   `aria-invalid` e `aria-describedby` no DevTools num campo com erro).
+
+**Resultado esperado:** Clicar no label foca o input correspondente. Esta era uma lacuna real
+de acessibilidade antes do M5.5 (labels sem `htmlFor`) — `FormField` agora gera o `id` via
+`useId()` e conecta `aria-describedby` ao texto de erro/hint. Um campo com erro precisa ter
+`aria-invalid="true"`.
+
+---
+
+### CENÁRIO 75: IDs únicos com vários formulários iguais na mesma tela `[M5.6 · executável hoje]`
+
+**Categoria:** Edge case
+**Pré-condições:** Em `/distribution`, com 3 objetivos de investimento cadastrados, todos em
+"Personalizado".
+**Passos:**
+1. Clicar no label "Ações (%)" **do segundo** objetivo.
+2. Conferir qual input recebeu o foco.
+3. Repetir com o terceiro objetivo.
+
+**Resultado esperado:** O foco vai para o input do objetivo clicado, nunca para o do primeiro.
+Cada `AllocationModelPicker` renderiza 4 `FormField` e, com 3 objetivos, são 12 inputs de
+mesma label na mesma página — se `useId()` não estivesse isolando por instância, todos os
+labels apontariam para o mesmo `id` e o foco sempre cairia no primeiro. Vale também para os
+2 blocos de pagamento do Nível 1, que repetem as mesmas 5 labels.
+
+---
+
+### CENÁRIO 76: Barra inferior fixa não cobre o conteúdo `[M5.5 · executável hoje]`
+
+**Categoria:** Edge case
+**Pré-condições:** 375px, em `/distribution` (a tela mais longa do app).
+**Passos:**
+1. Rolar até o fim da página.
+2. Tentar clicar no último botão da tela ("Salvar objetivos de investimento" / "+ Adicionar despesa").
+3. Repetir com zoom do navegador em 200%.
+
+**Resultado esperado:** O último elemento clicável fica inteiramente acima da barra fixa e
+continua clicável. O container reserva espaço (`pb-16`) justamente para isso — se o botão
+ficar por baixo da barra, o padding não acompanha a altura real da nav em zoom/fonte grande.
+
+---
+
+### CENÁRIO 77: Estados de carregamento e erro são visíveis `[M5.5 · executável hoje]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** DevTools → Network → throttling "Slow 3G".
+**Passos:**
+1. Abrir `/distribution` e observar o que aparece antes dos dados.
+2. Colocar a rede em "Offline" e tentar salvar o Nível 1.
+3. Voltar para "Online".
+
+**Resultado esperado:** Enquanto carrega, aparece o `LoadingState` com rótulo próprio
+("Carregando distribuição...", "Carregando despesas essenciais..."), não uma tela branca. A
+falha do passo 2 precisa virar um `Alert` **na tela** — antes do M5.5 vários erros de ação
+morriam só em `console.error`. Um erro que só existe no console é, para o usuário, um botão
+que não faz nada.
+
+---
+
+## 13. Distribuição — Nível 1 por pagamento e valor em R$ (M5.5/M5.6)
+
+### CENÁRIO 78: Alterar o salário líquido pela tela de Distribuição `[M5.6]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Usuário com **um** dia de pagamento (`payday2` nulo) e renda de R$ 4.900.
+**Passos:**
+1. Abrir `/distribution`. Conferir o campo "Salário líquido mensal (R$)" preenchido com 4.900.
+2. Trocar para 5.200 e observar o aviso que aparece.
+3. Conferir os valores em R$ ao lado de cada uma das 5 categorias.
+4. Salvar o Nível 1. Recarregar a página.
+5. Conferir `users/{uid}.monthlyIncomeNet` no console do Firebase.
+
+**Resultado esperado:** Um `Alert` informativo avisa que "sua renda mensal líquida passará de
+R$ 4.900,00 para R$ 5.200,00" **antes** de salvar — a renda alimenta Dashboard, reserva de
+emergência e alerta de orçamento, então mudá-la em silêncio seria uma surpresa. Os R$ por
+categoria recalculam ao vivo. Após salvar, o Firestore tem 5200 e a tela recarrega idêntica.
+**Defeito conhecido a conferir neste passo:** o texto do aviso renderiza "R$ R$ 4.900,00" —
+o "R$" aparece duplicado porque o componente prefixa um "R$" literal a um número já formatado
+com `style: 'currency'` (`NivelUmForm.tsx`, bloco do `incomeChanged`).
+
+---
+
+### CENÁRIO 79: Dois pagamentos — ida e volta exata dos valores em R$ `[M5.6]`
+
+**Categoria:** Persistência
+**Pré-condições:** Usuário com `payday1` e `payday2` preenchidos no onboarding.
+**Passos:**
+1. Em `/distribution`, digitar R$ 3.000,00 no 1º pagamento e R$ 1.900,00 no 2º.
+2. Conferir o campo "% da renda que chega no 1º pagamento".
+3. Salvar. Recarregar a página (F5).
+4. Conferir os dois campos em R$.
+
+**Resultado esperado:** O % do 1º vira ≈ 61,2 e os dois valores voltam **exatos** após o
+reload: R$ 3.000,00 e R$ 1.900,00. O schema não guarda os R$ — guarda só
+`payday1IncomeSharePercent` como double completo (sem arredondar) e a renda total; os R$
+exibidos são reconstruídos por `total × share` arredondado a centavos. Se voltar
+R$ 2.999,99 / R$ 1.900,01, o percentual está sendo arredondado antes de persistir e a
+reconstrução perde o centavo.
+
+---
+
+### CENÁRIO 80: Editar o % redistribui os valores mantendo o total `[M5.6]`
+
+**Categoria:** Interação
+**Pré-condições:** Cenário 79 concluído (R$ 3.000 / R$ 1.900, total R$ 4.900).
+**Passos:**
+1. Trocar o campo de % de 61,2 para 50.
+2. Conferir os dois campos em R$.
+3. Voltar o 1º pagamento para R$ 4.000 digitando direto no campo em R$.
+4. Conferir o % de novo.
+
+**Resultado esperado:** Sincronização nos dois sentidos, sempre preservando o total: no passo
+2, R$ 2.450,00 e R$ 2.450,00 (total intacto em R$ 4.900); no passo 4, o % recalcula sozinho
+(R$ 4.000 sobre R$ 5.900 ≈ 67,8%) e o aviso de mudança de renda aparece, porque agora o total
+mudou. O que **não** pode acontecer é o total derivar sozinho a cada digitação (dinheiro
+aparecendo ou sumindo sem o usuário ter mexido no total).
+
+---
+
+### CENÁRIO 81: Valores zerados bloqueiam o salvamento `[M5.6]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Em `/distribution`.
+**Passos:**
+1. Com um pagamento só: zerar o salário líquido e tentar salvar.
+2. Com dois pagamentos: zerar os dois e tentar salvar.
+3. Digitar um valor negativo (ou colar "-1000") e tentar salvar.
+
+**Resultado esperado:** Salvamento bloqueado nos três casos, com mensagem explícita ("o valor
+do pagamento precisa ser maior que 0" / "a soma dos pagamentos precisa ser maior que 0").
+Nenhum `NaN` ou `Infinity` aparece na tela, e nada é gravado no Firestore — nem a distribuição,
+nem `monthlyIncomeNet`. Uma renda zerada gravada aqui quebraria a reserva de emergência e a
+projeção do Dashboard.
+
+---
+
+### CENÁRIO 82: Primeiro pagamento zerado com o segundo preenchido `[M5.6]`
+
+**Categoria:** Edge case
+**Pré-condições:** Usuário com dois pagamentos.
+**Passos:**
+1. Zerar o 1º pagamento e deixar R$ 4.900 no 2º.
+2. Conferir o % e os R$ por categoria do bloco "1º pagamento".
+3. Salvar e recarregar.
+
+**Resultado esperado:** É um estado **válido** (a regra é soma > 0, o segundo pode ser 0 e
+vice-versa) — representa quem recebeu adiantamento zero naquele mês. O % vai para 0, todas as
+categorias do 1º bloco mostram R$ 0,00 e o 2º bloco carrega 100% da renda. Após recarregar,
+o estado se mantém. O que não pode: divisão por zero, `NaN` no percentual ou o formulário
+travar sem explicar.
+
+---
+
+### CENÁRIO 83: Caixa da Empresa — a 5ª categoria `[M5.5]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Conta nova, onboarding recém-concluído.
+**Passos:**
+1. Em `/distribution`, conferir o valor inicial de "Caixa da Empresa (%)".
+2. Mudar a divisão para 50/10/10/25/5 e salvar.
+3. Ir ao Dashboard e conferir o card "💎 Distribuição Ativa".
+4. Voltar, zerar a Caixa da Empresa (devolvendo os 5% para Essenciais) e salvar.
+5. Conferir o Dashboard de novo.
+
+**Resultado esperado:** O default é **0%** para todo mundo — quem não tem empresa não deve ser
+empurrado para uma categoria que não usa; o default segue 55/10/10/25/0. No passo 3 o card do
+Dashboard ganha a linha "Caixa da Empresa"; no passo 5 essa linha **some** (a linha só é
+renderizada quando o valor é maior que zero), sem deixar um "R$ 0,00" órfão no resumo.
+
+---
+
+### CENÁRIO 84: Cada pagamento valida a própria soma `[M5.5]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Usuário com dois pagamentos.
+**Passos:**
+1. Deixar o 1º pagamento somando 100% e o 2º somando 95%.
+2. Tentar salvar.
+3. Inverter (1º em 105%, 2º em 100%) e tentar de novo.
+
+**Resultado esperado:** Bloqueado nos dois casos, com o erro no bloco certo e a diferença
+exata ("Faltam 5,0% para completar 100%." / "A soma excedeu 100% em 5,0%."). O indicador de
+soma do bloco com erro fica vermelho e o do bloco correto permanece neutro — o usuário precisa
+saber **qual** pagamento está quebrado, não só que "algo" está.
+
+---
+
+### CENÁRIO 85: Cinco categorias com decimais `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** Em `/distribution`.
+**Passos:**
+1. Preencher 33,3 / 33,3 / 33,4 / 0 / 0 e tentar salvar.
+2. Preencher 20 / 20 / 20 / 20 / 20 e salvar.
+3. Preencher 33,33 / 33,33 / 33,33 / 0,01 / 0 e tentar salvar.
+
+**Resultado esperado:** Os três casos são aceitos. A validação usa
+`Math.abs(soma - 100) < 0.01`, não `soma === 100` — em JavaScript `33.3 + 33.3 + 33.4` dá
+`100.00000000000001`. Se o passo 1 for rejeitado, é exatamente o bug que o CENÁRIO 38 já
+descrevia, agora com 5 parcelas em vez de 4 (mais chances de acumular erro de ponto flutuante).
+
+---
+
+### CENÁRIO 86: Mudar a renda propaga para reserva, Dashboard e objetivos `[M5.6]`
+
+**Categoria:** Interação
+**Pré-condições:** Renda de R$ 4.900, investimentos em 25%, objetivos já cadastrados.
+**Passos:**
+1. Anotar a reserva de emergência exibida na própria tela de Distribuição.
+2. Anotar o "≈ R$ X por mês" da introdução do Nível 2 e o "≈ R$ X/mês" de cada objetivo.
+3. Mudar o salário para R$ 7.000 e salvar o Nível 1 (**sem** recarregar a página).
+4. Conferir os mesmos números do passo 1 e 2.
+5. Ir ao Dashboard.
+
+**Resultado esperado:** Sem reload: a reserva passa de R$ 29.400/R$ 58.800 para
+R$ 42.000/R$ 84.000 (6 e 12 meses de renda), o aporte do Nível 2 sobe de R$ 1.225 para
+R$ 1.750 e cada objetivo recalcula proporcionalmente. É o `refreshCurrentUser()` do
+`saveNivelUm` fazendo efeito — se algum desses números só mudar depois do F5, o refresh do
+contexto não está acontecendo ou a tela está lendo um valor congelado. No Dashboard, a
+velocidade de crescimento e o card de Distribuição Ativa refletem a renda nova.
+
+---
+
+### CENÁRIO 87: Renda alterada pelo Onboarding desloca os valores por pagamento `[M5.6]`
+
+**Categoria:** Interação
+**Pré-condições:** Dois pagamentos configurados como R$ 3.000 / R$ 1.900 (share ≈ 61,2%).
+**Passos:**
+1. Voltar a `/onboarding` e mudar a renda mensal líquida para R$ 5.880 (20% a mais). Salvar.
+2. Abrir `/distribution` e conferir os dois campos em R$.
+
+**Resultado esperado:** O **percentual** é o que persiste, não os R$: os campos passam a
+mostrar ≈ R$ 3.600,00 e ≈ R$ 2.280,00 (mesma proporção, 20% a mais em cada). Isso é o desenho,
+não um bug — mas é a consequência menos óbvia de "o schema guarda o %". Se o usuário quiser
+outros valores absolutos, redigita nos campos em R$. O que seria bug: a soma não bater com a
+renda salva no onboarding.
+
+---
+
+### CENÁRIO 88: Falha de rede no meio do salvamento do Nível 1 `[M5.6]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Em `/distribution`, com uma mudança de renda pendente.
+**Passos:**
+1. Preparar a mudança de salário (ex.: de R$ 4.900 para R$ 5.200).
+2. Colocar a rede em "Offline" no DevTools e clicar em Salvar.
+3. Voltar para "Online" e clicar em Salvar de novo.
+4. Recarregar e conferir Firestore: `distribution/current` **e** `users/{uid}.monthlyIncomeNet`.
+
+**Resultado esperado:** O salvamento faz duas escritas separadas (distribuição primeiro,
+renda depois) sem transação — uma falha no meio pode deixar a distribuição nova com a renda
+antiga. É um risco aceito no desenho: as escritas são idempotentes e o retry do passo 3 deve
+fechar a inconsistência. O critério de aprovação é: (a) o erro aparece na tela, (b) o retry
+resolve completamente, (c) o app não fica travado em "Salvando...".
+
+---
+
+### CENÁRIO 89: Remover o segundo pagamento deixa dados órfãos `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** Distribuição salva com `payday2Split` e `payday1IncomeSharePercent`.
+**Passos:**
+1. Voltar a `/onboarding` e apagar o 2º dia de pagamento. Salvar.
+2. Abrir `/distribution`.
+3. Conferir `distribution/current` no console do Firebase.
+
+**Resultado esperado:** A tela mostra **um único** bloco de divisão e o campo de % some —
+"tem 2 pagamentos?" é derivado de `users/{uid}.payday2`, nunca do documento de distribuição.
+O `payday2Split` continua gravado no Firestore, órfão e inofensivo (é intencional: se o
+usuário recolocar o 2º pagamento, a configuração volta). O que não pode: a tela somar os dois
+splits e inflar os R$ por categoria.
+
+---
+
+### CENÁRIO 90: Documento no formato antigo abre convertido, sem gravar sozinho `[M5.5]`
+
+**Categoria:** Persistência
+**Pré-condições:** Uma conta cujo `distribution/current` ainda esteja no formato flat do M5
+(`essentialsPercent` na raiz + `allocationModel` único). Se não houver, dá para forjar editando
+o documento direto no console do Firebase.
+**Passos:**
+1. Abrir `/distribution` e conferir se os percentuais salvos aparecem.
+2. **Sem salvar nada**, conferir o documento no Firestore.
+3. Conferir o Nível 2.
+4. Agora salvar o Nível 1 e conferir o documento de novo.
+
+**Resultado esperado:** A tela converte em memória: os 4 percentuais antigos viram o
+`payday1Split` (com Caixa da Empresa em 0%) e o modelo único vira **um** objetivo chamado
+"Meus Investimentos" com 100%. No passo 2 o documento continua **intacto** — a conversão nunca
+é gravada de ofício; só o salvamento explícito do usuário (passo 4) reescreve o documento no
+formato novo. Um doc no formato M5 **com** 2 pagamentos configurados cai no default novo (o
+documento antigo nunca soube de dois pagamentos, não há o que migrar), e isso também não pode
+quebrar a tela.
+
+---
+
+## 14. Distribuição — Nível 2 por objetivos de investimento (M5.5/M5.6)
+
+### CENÁRIO 91: Vários objetivos somando 100% `[M5.5]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Em `/distribution`, com investimentos em 25% de uma renda de R$ 4.900
+(aporte ≈ R$ 1.225).
+**Passos:**
+1. Renomear o objetivo padrão para "Casa + Carro 2031" e colocar 60%.
+2. Adicionar um segundo objetivo, "Aposentadoria", com 40% e modelo Agressivo.
+3. Conferir o "≈ R$ X/mês" de cada um e o resumo no topo.
+4. Salvar, recarregar e conferir tudo.
+
+**Resultado esperado:** R$ 735/mês e R$ 490/mês respectivamente; o resumo do topo mostra
+"100,0%" com "✓ Fechado em 100%" e a barra de progresso cheia. Após o reload, nomes,
+percentuais e modelos voltam idênticos, e o Dashboard passa a dizer "2 objetivos de
+investimento" com o retorno esperado combinado.
+**Defeito conhecido a conferir neste passo:** o hint do campo e a introdução mostram
+"= R$ R$ 735 por mês" — mesmo "R$" duplicado do CENÁRIO 78, aqui em `InvestmentBucketsForm.tsx`
+(introdução e hint de cada objetivo).
+
+---
+
+### CENÁRIO 92: Soma dos objetivos diferente de 100% `[M5.5]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Dois objetivos cadastrados.
+**Passos:**
+1. Colocar 60% e 30% (soma 90%). Observar o resumo no topo.
+2. Tentar salvar.
+3. Mudar para 60% e 50% (soma 110%) e tentar de novo.
+
+**Resultado esperado:** O resumo do topo muda de cor e diz "Faltam 10,0%" / "Excedeu 10,0%"
+**enquanto o usuário digita** — ele fica no topo justamente para não obrigar a rolar até o fim
+para descobrir que a conta não fecha. O salvamento é bloqueado e a mensagem de erro aparece
+perto do botão Salvar. Nada é gravado no Firestore.
+
+---
+
+### CENÁRIO 93: Atalho "Ajustar para fechar 100%" `[M5.6]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Três objetivos com 50% / 20% / 10% (soma 80%).
+**Passos:**
+1. Clicar em "↔ Ajustar para fechar 100%" **no terceiro** objetivo.
+2. Conferir os três percentuais e o resumo.
+3. Agora deixar a soma em 120% e usar o atalho no segundo objetivo.
+4. Preencher 33,3 / 33,3 / 33,4 e observar o botão de atalho.
+
+**Resultado esperado:** No passo 1, só o terceiro muda (vira 30%) e os outros ficam intactos —
+o atalho coloca **neste** objetivo o que falta para os demais fecharem 100%, sem
+auto-rebalancear ninguém. No passo 3, o objetivo clicado absorve o excesso (o resultado é
+limitado a [0, 100], nunca negativo). No passo 4, o resumo do topo diz "✓ Fechado em 100%"
+mas o botão de atalho **continua aparecendo**: a condição de exibição usa comparação exata
+(`total !== 100`) enquanto o resumo usa a tolerância de ponto flutuante — a mesma inconsistência
+que o CENÁRIO 38 documenta, agora entre dois pontos da mesma tela.
+
+---
+
+### CENÁRIO 94: Objetivo sem nome bloqueia o salvamento `[M5.5]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Em `/distribution`.
+**Passos:**
+1. Adicionar um objetivo, deixar o nome em branco e colocar um percentual que feche 100%.
+2. Tentar salvar.
+3. Preencher o nome só com espaços ("   ") e tentar de novo.
+
+**Resultado esperado:** Bloqueado nos dois casos, com o erro no campo de nome do objetivo certo
+("Informe um nome para o objetivo."). O passo 3 é o que separa validação de verdade de
+validação de fachada — o nome é normalizado com `trim()` antes de ser considerado preenchido.
+
+---
+
+### CENÁRIO 95: Remover objetivo pede confirmação e respeita o piso de 1 `[M5.6]`
+
+**Categoria:** Edge case
+**Pré-condições:** Três objetivos, um deles com nome e percentual preenchidos e outro
+totalmente vazio (recém-adicionado, 0%).
+**Passos:**
+1. Clicar em "Remover" no objetivo preenchido e **cancelar** o diálogo.
+2. Clicar de novo e confirmar.
+3. Remover o objetivo vazio.
+4. Tentar remover o último objetivo restante.
+
+**Resultado esperado:** O passo 1 não remove nada. O passo 2 remove. O passo 3 remove **sem**
+pedir confirmação — objetivo vazio não tem trabalho a perder, e confirmar tudo treina o usuário
+a clicar "OK" sem ler. No passo 4 o botão está desabilitado: o piso de 1 objetivo é estrutural,
+nunca se chega a uma lista vazia (que deixaria o retorno esperado sem base de cálculo).
+
+---
+
+### CENÁRIO 96: Objetivo novo começa em 0% `[M5.6]`
+
+**Categoria:** Edge case
+**Pré-condições:** Um objetivo com 100%.
+**Passos:**
+1. Clicar em "+ Adicionar objetivo".
+2. Conferir o percentual do objetivo novo e o resumo do topo.
+
+**Resultado esperado:** O objetivo novo entra com 0% e o objetivo existente **não** é
+rebalanceado — é a filosofia do app inteiro: nada se ajusta sozinho, o indicador de soma acusa
+até o usuário decidir. Com 100% + 0% a soma segue fechada, então dá para salvar sem mexer em
+nada; assim que o usuário digitar qualquer percentual no novo, o resumo acusa o excesso.
+**Divergência a registrar:** o plano do M5.6 previa que o objetivo novo já entrasse com o
+restante (`max(0, 100 - soma)`); a implementação entrega 0%. Como o restante é 0 quando a lista
+está fechada em 100%, os dois desenhos só divergem ao adicionar objetivo numa lista que ainda
+não fecha — decidir qual vale antes de marcar este cenário como aprovado.
+
+---
+
+### CENÁRIO 97: Atalho "Partir de:" no modelo Personalizado `[M5.6]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Um objetivo, com o modelo "Personalizado" selecionado e valores manuais
+quaisquer (ex.: 10/10/10/70).
+**Passos:**
+1. Clicar em "Partir de: All Weather (Ray Dalio)".
+2. Conferir os **quatro** campos: Ações, Renda Fixa, Alternativos, Caixa.
+3. Conferir a pré-visualização (barra + oscilação + retorno) logo abaixo.
+
+**Resultado esperado esperado pelo desenho:** os 4 campos passam a 30/40/20/10 e a
+pré-visualização acompanha.
+**O que acontece hoje:** só o **último** campo (Caixa) é aplicado — o resultado fica
+10/10/10/10. O handler chama a função de atualização quatro vezes seguidas no mesmo ciclo de
+render, e cada chamada parte do valor **antigo** vindo por prop (que só atualiza no próximo
+render), então as três primeiras são descartadas pela quarta. Em
+`AllocationModelPicker.tsx`, no bloco dos botões "Partir de:". A correção é montar o objeto
+completo e emitir **uma** atualização só. Cenário reprovado até lá.
+
+---
+
+### CENÁRIO 98: Trocar de Personalizado para um preset preserva a customização `[M5.5]`
+
+**Categoria:** Interação
+**Pré-condições:** Um objetivo em "Personalizado" com valores próprios salvos.
+**Passos:**
+1. Clicar no card "Conservador" e **cancelar** o aviso.
+2. Clicar de novo e confirmar.
+3. Salvar, recarregar a página.
+4. Voltar o objetivo para "Personalizado".
+
+**Resultado esperado:** O passo 1 não troca nada. O passo 2 troca para Conservador, mas a
+customização **não** é apagada — o aviso diz exatamente isso. No passo 4 os valores customizados
+continuam lá, inclusive depois do reload: o campo `customAllocation` permanece no documento
+mesmo com outro modelo ativo. Este é o CENÁRIO 39 revalidado na tela nova, agora **por
+objetivo**: com 2 objetivos, trocar o modelo de um não pode mexer no outro.
+
+---
+
+### CENÁRIO 99: Cards dos modelos — barra, oscilação e retorno `[M5.6]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Em `/distribution`, Nível 2.
+**Passos:**
+1. Conferir os percentuais de cada um dos 3 cards contra `src/core/allocationModels.ts`.
+2. Conferir o chip de oscilação de cada um.
+3. Selecionar um modelo e conferir a indicação de selecionado.
+4. Inspecionar a barra no DevTools e conferir `role="img"` e o `aria-label`.
+
+**Resultado esperado:** All Weather = 30/40/20/10, Conservador = 50/30/15/5, Agressivo =
+70/20/10/0 (o CENÁRIO 40 continua valendo — era o *drift* do PRD). Oscilação classificada pelo
+peso em ações: All Weather "baixa" (30%), Conservador "média" (50%), Agressivo "alta" (70%).
+O card selecionado mostra "✓ Selecionado" **em texto**, além da borda, e tem `aria-pressed="true"`.
+A legenda da barra repete os percentuais em texto — a informação nunca depende só de cor.
+**Observação de produto, não bug:** "Conservador" (50% em ações) oscila mais que
+"All Weather" (30%). O chip torna isso visível e a estranheza é legítima; os nomes vêm do PRD
+autoral e só mudam por decisão sua.
+
+---
+
+### CENÁRIO 100: Pré-visualização do Personalizado ao vivo `[M5.6]`
+
+**Categoria:** Interação
+**Pré-condições:** Um objetivo em "Personalizado".
+**Passos:**
+1. Digitar 100 em Ações e 0 nas outras três.
+2. Conferir barra, chip de oscilação e retorno esperado.
+3. Mudar para 0/0/0/100 (tudo em Caixa).
+4. Deixar a soma em 90% e conferir o indicador.
+5. Preencher 33,3 / 33,3 / 33,4 / 0 e olhar a barra.
+
+**Resultado esperado:** A pré-visualização acompanha cada tecla. Em 100% ações: oscilação
+"alta" e retorno ≈ 9,3% a.a.; em 100% caixa: oscilação "baixa" e retorno 0,0% a.a. (caixa não
+rende no catálogo). Com soma 90%, o indicador de soma acusa e o salvamento é bloqueado. No
+passo 5 a barra arredonda para 33/33/33 e fica visivelmente com uma fresta — é cosmético e
+esperado (`Math.round` por segmento), mas os números da legenda precisam continuar corretos.
+
+---
+
+### CENÁRIO 101: Glossário de classes de ativos `[M5.6]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Em `/distribution`, Nível 2.
+**Passos:**
+1. Expandir "O que é cada classe de ativos?".
+2. Conferir a lista de "Exemplos no app" de cada classe contra `src/core/assetReturnRates.ts`.
+3. Conferir se o glossário aparece também dentro de cada objetivo.
+
+**Resultado esperado:** Quatro classes explicadas (Ações, Renda Fixa, Alternativos, Caixa) e os
+exemplos vêm **do catálogo**, não de uma lista escrita à mão — Tesouro Selic e CDB/LCI/LCA em
+Renda Fixa, Bitcoin e FIIs em Alternativos, e assim por diante. Se alguém adicionar um
+instrumento ao catálogo e ele não aparecer aqui, a lista foi duplicada em algum lugar e vai
+divergir com o tempo. Use `<details>` nativo: precisa abrir/fechar sem JavaScript e funcionar
+com teclado (Enter/Espaço).
+
+---
+
+### CENÁRIO 102: Retorno esperado combinado de vários objetivos `[M5.5]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Dois objetivos: 60% em All Weather e 40% em Agressivo.
+**Passos:**
+1. Anotar o retorno esperado exibido em cada card selecionado.
+2. Conferir a linha "Retorno esperado: X% a.a." no rodapé da tela de Distribuição.
+3. Calcular à mão: `0,6 × retornoAllWeather + 0,4 × retornoAgressivo`.
+4. Mudar o segundo objetivo para 0% e conferir de novo.
+
+**Resultado esperado:** A linha do rodapé bate com a média ponderada do passo 3 (±0,1pp de
+arredondamento de exibição). No passo 4, com um objetivo a 0%, o retorno passa a ser o do
+objetivo de 60% puro — e a soma quebrada impede salvar, mas a exibição não pode virar `NaN`
+enquanto o usuário edita. A mesma linha diz se o resultado "bate sua meta" usando o aporte
+mensal atual e o patrimônio real do Portfólio.
+
+---
+
+### CENÁRIO 103: Salvar um nível não apaga o outro `[M5.5]`
+
+**Categoria:** Interação
+**Pré-condições:** Distribuição completa e salva (Nível 1 + objetivos).
+**Passos:**
+1. Mudar só o Nível 1 e clicar em "Salvar Nível 1".
+2. Recarregar e conferir se os objetivos continuam iguais.
+3. Mudar só os objetivos e clicar em "Salvar objetivos de investimento".
+4. Recarregar e conferir se o Nível 1 continua igual.
+5. Conferir o documento no Firestore depois de cada salvamento.
+
+**Resultado esperado:** Os dois níveis coexistem — cada botão faz uma escrita de merge, que
+atualiza só os campos daquele nível. Se salvar o Nível 1 zerar os objetivos (ou vice-versa),
+alguém trocou a escrita de merge por sobrescrita do documento inteiro, e o usuário perde metade
+da configuração a cada salvamento.
+
+---
+
+## 15. Despesas essenciais detalhadas (M5.5)
+
+### CENÁRIO 104: CRUD de despesa essencial e comparação com o orçado `[M5.5]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Em `/distribution`, com essenciais orçados em R$ 2.695 (55% de R$ 4.900).
+**Passos:**
+1. Adicionar "Aluguel" R$ 1.500 e "Celular" R$ 80.
+2. Conferir a linha "Orçado · Real · Saldo".
+3. Editar o Celular para R$ 120 e conferir o saldo de novo.
+4. Recarregar a página.
+5. Conferir `users/{uid}/essentialExpenses` no console do Firebase.
+
+**Resultado esperado:** Real = R$ 1.580 e Saldo = R$ 1.115 (positivo = sobrou orçamento, mesmo
+sinal do "Saldo Despesa" da planilha pessoal). Após a edição, Real = R$ 1.620. Tudo sobrevive
+ao reload e cada item é um documento na subcoleção.
+
+---
+
+### CENÁRIO 105: Estouro do orçamento de essenciais `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** Cenário 104 concluído.
+**Passos:**
+1. Adicionar uma despesa de R$ 2.000 (levando o real acima do orçado).
+2. Conferir cor e texto do resumo.
+3. Reduzir o percentual de Essenciais no Nível 1 e salvar, sem tocar nas despesas.
+
+**Resultado esperado:** O resumo vira alerta de atenção (não de sucesso) e o saldo aparece
+negativo, sem esconder o sinal. No passo 3, mexer no Nível 1 muda o **orçado** e o resumo
+reage na hora — os dois lados da comparação são vivos, não um número salvo.
+
+---
+
+### CENÁRIO 106: Excluir despesa é permanente `[M5.5]`
+
+**Categoria:** Persistência
+**Pré-condições:** Pelo menos duas despesas cadastradas.
+**Passos:**
+1. Clicar em "Excluir" numa despesa e cancelar o diálogo.
+2. Clicar de novo e confirmar.
+3. Conferir a subcoleção no Firestore.
+4. Recarregar a página.
+
+**Resultado esperado:** O passo 1 não remove nada. Depois do passo 2 o documento **desaparece**
+da subcoleção — diferente de ativo do Portfólio, que é arquivado com `status`. É deliberado:
+linha de orçamento é recalculável, posição de investimento tem valor histórico. Confirmar que
+não sobrou documento com flag de "excluído".
+
+---
+
+### CENÁRIO 107: Lista de despesas vazia `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta sem nenhuma despesa essencial cadastrada.
+**Passos:**
+1. Abrir `/distribution` e rolar até a seção de despesas essenciais.
+2. Conferir o resumo Orçado/Real/Saldo.
+
+**Resultado esperado:** Um estado vazio explicativo (não uma área em branco), Real = R$ 0,00 e
+Saldo = igual ao orçado, com o resumo em cor positiva. Nenhum `NaN` e nenhuma divisão por zero
+com a lista vazia.
+
+---
+
+### CENÁRIO 108: Custo essencial do Onboarding vs. lista detalhada `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** `essentialMonthlyCost` = R$ 2.000 no onboarding e despesas detalhadas
+somando R$ 3.500.
+**Passos:**
+1. Conferir o saldo na tela de Distribuição.
+2. Ir ao Dashboard e conferir a velocidade de crescimento e o alerta de orçamento.
+3. Voltar ao onboarding e conferir se o custo essencial mudou sozinho.
+
+**Resultado esperado:** São **dois números independentes, sem reconciliação automática** — o
+Dashboard continua usando `essentialMonthlyCost` para a velocidade, e a lista detalhada só
+alimenta a comparação da tela de Distribuição. É decisão de desenho, não lacuna; o cenário
+existe para flagrar o dia em que alguém "consertar" isso e criar duas fontes de verdade
+brigando. Se a divergência incomodar na prática, a decisão a tomar é qual dos dois manda.
+
+---
+
+### CENÁRIO 109: Valores extremos e nomes longos em despesas `[M5.5]`
+
+**Categoria:** Edge case
+**Pré-condições:** Em `/distribution`.
+**Passos:**
+1. Tentar salvar uma despesa com valor 0 e com valor negativo.
+2. Salvar uma com R$ 999.999.999,99.
+3. Salvar uma com nome de 200 caracteres.
+4. Cadastrar 30 despesas e conferir a rolagem e o desempenho em 375px.
+
+**Resultado esperado:** Valor 0 e negativo são rejeitados com mensagem no campo. O valor gigante
+formata sem quebrar o layout (sem estourar o card na horizontal). O nome longo trunca ou quebra
+linha, sem empurrar os botões "Editar"/"Excluir" para fora da tela. Com 30 itens a tela continua
+utilizável e o total bate com a soma manual.
+
+---
+
+## 16. Jornada e regressão da Distribuição (M5.5/M5.6)
+
+### CENÁRIO 110: Jornada completa da Distribuição ponta a ponta `[M5.6]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Conta nova, onboarding com **dois** dias de pagamento.
+**Passos:**
+1. Concluir o onboarding e ir direto para `/distribution` pela navegação (sem digitar URL).
+2. Informar os valores recebidos em cada pagamento (R$ 3.000 e R$ 1.900).
+3. Ajustar as 5 categorias de cada pagamento com divisões **diferentes** entre eles.
+4. Salvar o Nível 1.
+5. Criar 2 objetivos de investimento com modelos diferentes, fechando 100%. Salvar.
+6. Cadastrar 4 despesas essenciais.
+7. Ir ao Dashboard e conferir o card "Distribuição Ativa".
+8. Fazer logout, login e refazer o percurso conferindo cada número.
+
+**Resultado esperado:** Tudo sobrevive ao ciclo de logout/login. Os R$ por categoria no
+Dashboard são a soma ponderada dos dois pagamentos (não a média simples dos percentuais) e
+batem com a conta manual: para cada categoria,
+`3000 × pct1/100 + 1900 × pct2/100`. A contagem de objetivos e o retorno esperado conferem.
+Zero erros no console na jornada inteira. **Este é o cenário de aceitação do M5.5/M5.6** — se
+ele passa, a tela de Distribuição entrega o que a planilha pessoal fazia.
+
+---
+
+### CENÁRIO 111: Duas abas editando a mesma distribuição `[M5.5]`
+
+**Categoria:** Interação
+**Pré-condições:** `/distribution` aberta em duas abas do mesmo usuário.
+**Passos:**
+1. Na aba A, mudar o Nível 1 e salvar.
+2. Na aba B (carregada **antes** disso), mudar só os objetivos e salvar.
+3. Recarregar as duas abas.
+4. Repetir, mas com as duas abas editando o **mesmo** nível.
+
+**Resultado esperado:** No passo 3, as duas mudanças coexistem — as escritas são por campo, e
+níveis diferentes não se sobrescrevem. No passo 4 vale "quem salvou por último ganha", sem erro
+na tela; o aceitável é o usuário perder a edição mais antiga, o inaceitável é o documento ficar
+num estado misto e incoerente (ex.: `payday1Split` de uma aba e `payday2Split` da outra).
+
+---
+
+### CENÁRIO 112: Distribuição offline e sincronização `[M5.5]`
+
+**Categoria:** Persistência
+**Pré-condições:** App aberto em `/distribution`, dados já carregados.
+**Passos:**
+1. Ativar "Offline" no DevTools.
+2. Editar os objetivos de investimento e salvar.
+3. Observar a tela: o salvamento parece ter funcionado?
+4. Voltar para "Online" e aguardar.
+5. Conferir o Firestore e recarregar a página.
+
+**Resultado esperado:** O comportamento depende de a persistência offline do Firestore estar
+ligada. Com ela ligada, a escrita fica na fila, a UI reflete o valor novo na hora e sincroniza
+ao voltar a rede; sem ela, o salvamento precisa **falhar de forma visível** (alerta na tela),
+não ficar em silêncio dando a impressão de sucesso. O pior resultado possível é o usuário
+acreditar que salvou, fechar o app e perder a configuração.
 
 ---
 

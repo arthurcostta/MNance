@@ -10,6 +10,7 @@ import {
   getDistribution,
   updateDistribution,
 } from '../services/distributionService'
+import { updateUserDocument } from '../services/userService'
 import type {
   CustomAllocation,
   Distribution,
@@ -186,6 +187,69 @@ export function calculateEssentialsComparison(budget: number, real: number): Ess
   return { budget, real, balance: budget - real }
 }
 
+// M5.6: Valor recebido por pagamento
+
+export interface PaydayAmounts {
+  payday1Amount: number
+  payday2Amount: number
+}
+
+// Divide a renda total entre os 2 pagamentos baseado no percentual do 1º.
+// Arredonda o 1º a centavos e deixa o 2º como complement (soma fecha exata).
+// Total 0 retorna ambos como 0.
+export function splitIncomeByShare(total: number, sharePercent: number): PaydayAmounts {
+  if (total <= 0) return { payday1Amount: 0, payday2Amount: 0 }
+  const payday1 = Math.round((total * sharePercent) / 100 * 100) / 100
+  return {
+    payday1Amount: payday1,
+    payday2Amount: Math.round((total - payday1) * 100) / 100,
+  }
+}
+
+// Inverso: calcula o percentual do 1º pagamento a partir dos dois valores.
+// Total 0 retorna 50 (default). Retorna 0–100.
+export function shareFromAmounts(payday1Amount: number, payday2Amount: number): number {
+  const total = payday1Amount + payday2Amount
+  if (total <= 0) return 50
+  return (payday1Amount / total) * 100
+}
+
+export interface PaydayAmountsErrors {
+  payday1Amount?: string
+  payday2Amount?: string
+  total?: string
+}
+
+// Valida os valores em R$ de cada pagamento.
+// 1 pagamento: payday1Amount > 0; payday2Amount ignorado.
+// 2 pagamentos: payday1Amount + payday2Amount > 0 (cada um >= 0, o 2º pode ser 0).
+export function validatePaydayAmounts(
+  amounts: PaydayAmounts,
+  hasSecondPayday: boolean
+): PaydayAmountsErrors {
+  const errors: PaydayAmountsErrors = {}
+
+  if (!isFinite(amounts.payday1Amount) || amounts.payday1Amount < 0) {
+    errors.payday1Amount = 'O valor precisa ser finito e não-negativo.'
+  }
+
+  if (hasSecondPayday) {
+    if (!isFinite(amounts.payday2Amount) || amounts.payday2Amount < 0) {
+      errors.payday2Amount = 'O valor precisa ser finito e não-negativo.'
+    }
+    const total = amounts.payday1Amount + amounts.payday2Amount
+    if (total <= 0) {
+      errors.total = 'A soma dos pagamentos precisa ser maior que 0.'
+    }
+  } else {
+    if (amounts.payday1Amount <= 0) {
+      errors.total = 'O valor do pagamento precisa ser maior que 0.'
+    }
+  }
+
+  return errors
+}
+
 interface ResolveContext {
   riskProfile: RiskProfile
   hasSecondPayday: boolean
@@ -262,7 +326,7 @@ export function resolveStoredDistribution(
 }
 
 export function useDistribution(uid: string | undefined) {
-  const { currentUser } = useAuth()
+  const { currentUser, refreshCurrentUser } = useAuth()
   const portfolio = usePortfolio(uid)
 
   const [payday1Split, setPayday1Split] = useState<PaydaySplit>(
@@ -341,10 +405,12 @@ export function useDistribution(uid: string | undefined) {
       payday1Split: PaydaySplit
       payday2Split?: PaydaySplit
       payday1IncomeSharePercent?: number
+      monthlyIncomeNet: number
     }) => {
       if (!uid) return
       setActionError(null)
       try {
+        // M5.6: Escreve Distribution + User.monthlyIncomeNet (nesta ordem)
         const data: Partial<Omit<Distribution, 'updatedAt'>> = {
           payday1Split: payload.payday1Split,
         }
@@ -353,17 +419,30 @@ export function useDistribution(uid: string | undefined) {
           data.payday1IncomeSharePercent = payload.payday1IncomeSharePercent
         }
         await updateDistribution(uid, data)
+
+        // Atualiza User.monthlyIncomeNet se mudou
+        const incomeChanged = Math.abs((payload.monthlyIncomeNet || 0) - (currentUser?.monthlyIncomeNet || 0)) >= 0.005
+        if (incomeChanged && currentUser) {
+          await updateUserDocument(uid, { monthlyIncomeNet: payload.monthlyIncomeNet })
+        }
+
+        // Atualiza estado local
         setPayday1Split(payload.payday1Split)
         if (payload.payday2Split) setPayday2Split(payload.payday2Split)
         if (payload.payday1IncomeSharePercent !== undefined) {
           setPayday1IncomeSharePercent(payload.payday1IncomeSharePercent)
+        }
+
+        // Recarrega currentUser se renda mudou (afeta Dashboard, Reserva de Emergência)
+        if (incomeChanged) {
+          await refreshCurrentUser()
         }
       } catch (error) {
         setActionError(error instanceof Error ? error.message : 'Erro ao salvar a distribuição.')
         throw error
       }
     },
-    [uid]
+    [uid, currentUser, refreshCurrentUser]
   )
 
   const saveInvestmentBuckets = useCallback(

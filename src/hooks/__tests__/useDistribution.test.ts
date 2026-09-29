@@ -8,6 +8,9 @@ import {
   calculateBlendedExpectedReturn,
   resolveStoredDistribution,
   calculateEssentialsComparison,
+  splitIncomeByShare,
+  shareFromAmounts,
+  validatePaydayAmounts,
   type NivelUmInput,
   type PaydayAmountInput,
 } from '../useDistribution'
@@ -332,5 +335,85 @@ describe('calculateEssentialsComparison', () => {
 
   it('should return a zero balance when they match exactly', () => {
     expect(calculateEssentialsComparison(2000, 2000).balance).toBe(0)
+  })
+})
+
+// M5.6: Valor recebido por pagamento
+describe('splitIncomeByShare', () => {
+  it('should split income according to a percentage', () => {
+    const result = splitIncomeByShare(4900, 60)
+    expect(Math.abs(result.payday1Amount - 2940) < 0.01).toBe(true)
+    expect(Math.abs(result.payday2Amount - 1960) < 0.01).toBe(true)
+  })
+
+  it('should return both as 0 when total is 0', () => {
+    const result = splitIncomeByShare(0, 50)
+    expect(result.payday1Amount).toBe(0)
+    expect(result.payday2Amount).toBe(0)
+  })
+
+  it('should have exact sum at centavos precision', () => {
+    const result = splitIncomeByShare(3890.57, 61.2)
+    const sum = Math.round((result.payday1Amount + result.payday2Amount) * 100) / 100
+    expect(Math.abs(sum - 3890.57) < 0.01).toBe(true)
+  })
+})
+
+describe('shareFromAmounts', () => {
+  it('should calculate the percentage of payday1', () => {
+    const share = shareFromAmounts(3000, 1900)
+    expect(Math.abs(share - 61.22) < 0.1).toBe(true)
+  })
+
+  it('should return 50 when total is 0', () => {
+    const share = shareFromAmounts(0, 0)
+    expect(share).toBe(50)
+  })
+
+  it('should return 100 when only payday1 exists', () => {
+    const share = shareFromAmounts(5000, 0)
+    expect(share).toBe(100)
+  })
+
+  it('should return 0 when only payday2 exists', () => {
+    const share = shareFromAmounts(0, 5000)
+    expect(share).toBe(0)
+  })
+})
+
+describe('validatePaydayAmounts', () => {
+  it('should pass with valid 1-payday income', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: 5000, payday2Amount: 0 }, false)
+    expect(Object.keys(errors).length).toBe(0)
+  })
+
+  it('should pass with valid 2-payday income', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: 3000, payday2Amount: 2000 }, true)
+    expect(Object.keys(errors).length).toBe(0)
+  })
+
+  it('should error when 1-payday amount is <= 0', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: 0, payday2Amount: 0 }, false)
+    expect(errors.total).toBeDefined()
+  })
+
+  it('should error when 2-payday sum is <= 0', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: 0, payday2Amount: 0 }, true)
+    expect(errors.total).toBeDefined()
+  })
+
+  it('should allow 2nd payday = 0 (all in 1st)', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: 5000, payday2Amount: 0 }, true)
+    expect(Object.keys(errors).length).toBe(0)
+  })
+
+  it('should error when values are negative', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: -100, payday2Amount: 0 }, false)
+    expect(errors.payday1Amount).toBeDefined()
+  })
+
+  it('should error when values are not finite (NaN, Infinity)', () => {
+    const errors = validatePaydayAmounts({ payday1Amount: NaN, payday2Amount: 0 }, false)
+    expect(errors.payday1Amount).toBeDefined()
   })
 })

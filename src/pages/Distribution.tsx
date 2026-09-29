@@ -25,6 +25,7 @@ export default function Distribution() {
     payday1Split: PaydaySplit
     payday2Split?: PaydaySplit
     payday1IncomeSharePercent?: number
+    monthlyIncomeNet: number
   }) => {
     setSavingNivelUm(true)
     try {
@@ -68,6 +69,7 @@ export default function Distribution() {
       <Card className="mb-6">
         <InvestmentBucketsForm
           initialBuckets={distribution.investmentBuckets}
+          monthlyInvestment={distribution.amounts.investments}
           onSave={handleSaveBuckets}
           isSaving={savingBuckets}
         />

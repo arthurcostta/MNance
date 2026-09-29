@@ -57,3 +57,13 @@ export function calculateModelExpectedReturn(model: AllocationModel): number {
     { amount: model.cash, expectedReturnRate: averageRateByClass('cash') },
   ])
 }
+
+// M5.6: Classifica a oscilação de um modelo baseado no peso em ações.
+// Heurística simples: menos ações = menor oscilação = mais conservador.
+export type OscillationLevel = 'low' | 'medium' | 'high'
+
+export function classifyModelOscillation(model: AllocationModel): OscillationLevel {
+  if (model.stocks <= 0.4) return 'low'
+  if (model.stocks <= 0.6) return 'medium'
+  return 'high'
+}
