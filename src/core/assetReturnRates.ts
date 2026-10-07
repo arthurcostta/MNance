@@ -19,6 +19,8 @@ export interface AssetReturnRate {
   label: string
   assetClass: AssetClass
   annualRate: number
+  /** Incluir no cálculo da média por classe? (default true). Usado para excluir outliers como Bitcoin. */
+  inClassAverage?: boolean
 }
 
 export type AssetInstrumentKey =
@@ -41,7 +43,7 @@ export const ASSET_RETURN_RATES: Record<AssetInstrumentKey, AssetReturnRate> = {
     annualRate: 0.105,
   },
   FII: { label: 'FIIs', assetClass: 'alternatives', annualRate: 0.105 },
-  BITCOIN: { label: 'Bitcoin', assetClass: 'alternatives', annualRate: 0.45 },
+  BITCOIN: { label: 'Bitcoin', assetClass: 'alternatives', annualRate: 0.45, inClassAverage: false },
   PREVIDENCIA: { label: 'Previdência Privada', assetClass: 'bonds', annualRate: 0.06 },
   CAIXA: { label: 'Caixa', assetClass: 'cash', annualRate: 0 },
 }

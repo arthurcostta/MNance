@@ -43,10 +43,28 @@ export const ALLOCATION_MODELS: Record<AllocationModelKey, AllocationModel> = {
 // Feature #7 (Recomendação de Alocação) — retorno esperado de um modelo, derivado da taxa
 // média por classe do catálogo já existente (assetReturnRates.ts), nunca uma taxa nova
 // hardcoded — evita duplicar premissas de retorno em dois lugares do código.
+// Exclui instrumentos com inClassAverage: false (ex: Bitcoin, outliers).
 function averageRateByClass(assetClass: AssetClass): number {
-  const rates = Object.values(ASSET_RETURN_RATES).filter((r) => r.assetClass === assetClass)
+  const rates = Object.values(ASSET_RETURN_RATES).filter(
+    (r) => r.assetClass === assetClass && (r.inClassAverage !== false)
+  )
   if (rates.length === 0) return 0
   return rates.reduce((sum, r) => sum + r.annualRate, 0) / rates.length
+}
+
+// M5.8 Fase 3: mapeia o tipo de risco do usuário para a chave de modelo. Usada quando não
+// há ativos cadastrados e precisamos de uma taxa default para a projeção.
+export type RiskProfile = 'conservative' | 'moderate' | 'aggressive'
+
+export function modelKeyForRiskProfile(profile: RiskProfile): AllocationModelKey {
+  switch (profile) {
+    case 'conservative':
+      return 'CONSERVATIVE'
+    case 'moderate':
+      return 'ALL_WEATHER'
+    case 'aggressive':
+      return 'AGGRESSIVE'
+  }
 }
 
 export function calculateModelExpectedReturn(model: AllocationModel): number {
