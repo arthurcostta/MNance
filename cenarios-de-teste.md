@@ -106,7 +106,8 @@ legível em português. O importante é: não pode passar silenciosamente nem mo
 **Pré-condições:** Deslogado (ou aba anônima).
 **Passos:**
 1. Colar `http://localhost:5173/portfolio` direto na barra de endereços.
-2. Repetir para `/simulator`, `/expenses`, `/settings`, `/`.
+2. Repetir para `/distribution`, `/account`, `/`. (Simulador, Despesas, Parcelas, Agenda, Relatório e
+   Configurações não têm rota desde o M5.8 — voltam aqui quando forem construídos.)
 
 **Resultado esperado:** Redirecionamento para `/login` em todas. Nenhum flash de
 conteúdo protegido antes do redirect. Nenhuma chamada ao Firestore disparada.
@@ -1151,18 +1152,19 @@ central: "se eu mantiver isso, quantos anos até ficar rico?".
 **Pré-condições:** Onboarding concluído. DevTools em 375px de largura.
 **Passos:**
 1. Abrir o app logado. Conferir a barra fixa no rodapé.
-2. Tocar em cada uma das 4 posições: Radar, Distribuição, Portfólio, Mais.
-3. Em `/more`, tocar em cada uma das 6 entradas listadas.
+2. Tocar em cada uma das 4 posições: Radar, Distribuição, Portfólio, Conta.
+3. Em `/account`, conferir nome, e-mail, o botão "Editar onboarding" e o botão "Sair".
+4. Digitar na URL `/more`, `/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`.
 
-**Resultado esperado:** A barra inferior tem exatamente 4 posições (`PRIMARY_NAV` + "Mais").
-A posição da rota atual fica em preto/negrito e as demais em cinza. `/more` lista Simulador,
-Despesas, Parcelas, Agenda, Relatório e Configurações — as 6 rotas que ainda são stub, mas
-todas devem abrir sem erro de rota. Antes do M5.5 nenhuma dessas telas era alcançável sem
-digitar a URL à mão; se alguma some da lista, a regressão é em `src/components/Layout/navItems.ts`.
+**Resultado esperado:** A barra inferior tem exatamente 4 posições (`PRIMARY_NAV` + "Conta").
+A posição da rota atual fica em preto/negrito e as demais em cinza. **Não existe** "Mais": desde o
+M5.8 só aparece o que já foi construído, e as rotas do passo 4 redirecionam para `/` (as páginas-stub
+continuam no disco, sem rota). "Sair" na tela Conta encerra a sessão e leva a `/login`.
+Se a barra mudar de itens, a regressão é em `src/components/Layout/navItems.ts`.
 
 ---
 
-### CENÁRIO 72: Sidebar no desktop lista as 9 rotas `[M5.5 · executável hoje]`
+### CENÁRIO 72: Sidebar no desktop lista as telas construídas, com Conta e Sair `[M5.5 · atualizado no M5.8]`
 
 **Categoria:** Caminho feliz
 **Pré-condições:** Janela em 1280px.
@@ -1171,8 +1173,8 @@ digitar a URL à mão; se alguma some da lista, a regressão é em `src/componen
 2. Navegar para `/distribution` e observar o destaque da rota ativa.
 3. Navegar para `/portfolio` e voltar para `/` pelo item "Radar".
 
-**Resultado esperado:** A sidebar lista as 9 rotas (`ALL_NAV`) sem agrupamento em "Mais" —
-"Mais" é só uma limitação de espaço do mobile. Só o item da rota atual fica destacado. Em `/`
+**Resultado esperado:** A sidebar lista Radar, Distribuição e Portfólio (`PRIMARY_NAV`) e, no
+rodapé separado por uma linha, "Conta" e o botão "Sair" (que leva a `/login`). Só o item da rota atual fica destacado. Em `/`
 apenas "Radar" fica ativo: o item usa `end` para casar exatamente a raiz, então estar em
 `/distribution` **não** pode acender também o "Radar" (o bug clássico de `NavLink` sem `end`).
 
@@ -1902,8 +1904,120 @@ acreditar que salvou, fechar o app e perder a configuração.
 
 ---
 
+## 17. Regressões do pente fino de 07/10/2026 (sessão, Radar e realismo da projeção)
+
+Cenários escritos a partir de defeitos **encontrados executando o app** (navegador automatizado,
+persona "Rafael": renda R$ 5.781 em 2 pagamentos, patrimônio R$ 41.291, meta R$ 5 mi em 25 anos).
+Todos falharam na execução de 07/10 — ficam aqui como regressão obrigatória depois da correção.
+
+### CENÁRIO 113: Login em sessão nova leva ao Radar, não ao onboarding `[regressão]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Usuário com onboarding concluído. Navegador sem sessão (aba anônima ou outro aparelho).
+**Passos:**
+1. Acessar `/login`, informar email e senha, clicar "Entrar".
+2. Aguardar a navegação terminar, sem recarregar.
+
+**Resultado esperado:** O usuário cai no Radar (`/`). Nunca em "Editar seu onboarding". A tela
+pode mostrar o carregamento enquanto o documento do usuário é lido, mas não pode decidir a rota
+antes dessa leitura terminar.
+
+---
+
+### CENÁRIO 114: Reeditar o onboarding não apaga a Distribuição personalizada `[regressão]`
+
+**Categoria:** Interação
+**Pré-condições:** Distribuição personalizada salva (ex.: 2 objetivos "Aposentadoria" 40% e
+"Casa + Carro 2031" 60%, salário por pagamento, % diferentes do padrão).
+**Passos:**
+1. Abrir `/onboarding`, avançar até o passo 5 sem mudar nada e clicar "Atualizar".
+2. Abrir `/distribution` e conferir os campos (valores dos inputs, não só o texto da página).
+
+**Resultado esperado:** Objetivos, percentuais por pagamento e demais escolhas continuam iguais.
+O onboarding só cria a distribuição padrão quando ela ainda não existe.
+
+---
+
+### CENÁRIO 115: Sair da conta `[regressão]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Usuário logado, mobile e desktop.
+**Passos:**
+1. Procurar a opção de sair (menu lateral, "Mais" ou Configurações).
+2. Sair e tentar abrir `/` pela URL.
+
+**Resultado esperado:** Existe uma ação "Sair" visível; depois dela, `/` redireciona para `/login`.
+
+---
+
+### CENÁRIO 116: Radar coerente com a Distribuição `[regressão]`
+
+**Categoria:** Interação
+**Pré-condições:** Distribuição com Investimentos = 25% de R$ 5.781 (R$ 1.445,25).
+**Passos:**
+1. Abrir o Radar e ler "Velocidade de Crescimento", o insight "+20%" e o card "Distribuição Ativa".
+2. Mudar Investimentos para 30% na Distribuição, salvar e voltar ao Radar.
+
+**Resultado esperado:** O aporte usado pelo Radar é o mesmo valor de Investimentos efetivos do
+card "Distribuição Ativa" (nunca "renda − custo essencial" = R$ 4.035 enquanto o card diz R$ 1.445),
+e o tempo até a meta muda quando Investimentos muda.
+
+---
+
+### CENÁRIO 117: Primeiro Radar logo após o onboarding, sem ativos cadastrados `[regressão]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta nova; onboarding concluído com patrimônio R$ 41.291; nenhum ativo no Portfólio.
+**Passos:**
+1. Concluir o onboarding e observar o primeiro Radar.
+
+**Resultado esperado:** O Radar não pode concluir "mais de 100 anos" por ter assumido retorno
+de 0% e patrimônio zero. Ou usa uma premissa explícita (retorno do modelo da Distribuição,
+patrimônio informado no onboarding), ou pede o cadastro dos ativos antes de mostrar o tempo até a meta.
+
+---
+
+### CENÁRIO 118: Retorno esperado dos modelos respeita a relação risco × retorno `[regressão]`
+
+**Categoria:** Edge case
+**Pré-condições:** Tela de Distribuição, Nível 2.
+**Passos:**
+1. Ler o "Retorno esperado" dos cards All Weather, Conservador e Agressivo.
+
+**Resultado esperado:** Agressivo ≥ Conservador/All Weather (mais risco, mais retorno esperado).
+Em 07/10: All Weather 12,1% > Conservador 11,6% > Agressivo 11,2%, porque "Alternativos" é a
+média simples de FII (10,5%) e Bitcoin (45%) = 27,75% a.a.
+
+---
+
+### CENÁRIO 119: Projeção mostrada em valores de hoje `[regressão]`
+
+**Categoria:** Edge case
+**Pré-condições:** Radar com meta de longo prazo (≥ 20 anos).
+**Passos:**
+1. Ler o tempo até a meta e o gráfico.
+
+**Resultado esperado:** A tela deixa claro se os valores são nominais ou em valores de hoje, e
+considera inflação (premissa editável). Em 07/10: projeção nominal sem inflação — R$ 5 mi em 22 anos
+equivalem a ≈ R$ 2,2 mi em poder de compra de hoje.
+
+---
+
+### CENÁRIO 120: Build de produção passa antes de qualquer deploy `[regressão]`
+
+**Categoria:** Caminho de erro
+**Pré-condições:** Working tree que vai para o Firebase Hosting.
+**Passos:**
+1. Rodar `npm run build` e `npm test`.
+
+**Resultado esperado:** Ambos sem erro. Em 07/10: 29 erros de TypeScript (código parcial do M5.7)
+e 3 testes de `inflation.test.ts` com valores esperados incorretos — o deploy publicaria um `dist/` antigo.
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
 |------|-----------|---------------------|--------|-------------|
-|      |           |                     |        |             |
+| 07/10/2026 | M5.6 + M5.7 parcial (não commitado) | Jornada completa no navegador automatizado (mobile 390px + desktop 1280px): cadastro (senha fraca), onboarding (validações de nome, meta, custo > renda, dias iguais), seed + 3 ativos, Distribuição (salário por pagamento, 11 despesas, 2 objetivos, soma ≠ 100%, persistência), Radar, re-login. Inclui 31, 37, 104 (inclusão), 110 (parcial) e 113–120 | 113–120 | Passaram: validações do onboarding e do cadastro, retorno ponderado do Portfólio (11,17%), sincronização R$ ↔ % (50%), saldo de essenciais (R$ 1.433,55), persistência após reload, bloqueio de soma ≠ 100%, Radar bate o cálculo manual da fórmula atual (22a 8m). Conta de teste criada: `qa.rafael.*@mnance-teste.dev`. |
+| 07/10/2026 | M5.8 Fase 0 (correções, ainda não commitada) | 113, 114, 115, 120 + 06/71/72 atualizados + navegação enxuta + vírgula decimal, no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` | 0 | **113:** login → `/` (rotas vistas: `/login`, `/`), sem passar por `/onboarding`. **114:** "Aposentadoria 40%" e "Casa + Carro 2031 60%" intactos após "Atualizar" no onboarding. **115:** "Sair" na tela Conta (mobile) e na sidebar (desktop) leva a `/login`; abrir `/` sem sessão volta a `/login`. **120:** `tsc` 0 erros, 181 testes verdes (17 arquivos), `oxlint` exit 0 (só warnings antigos), `npm run build` exit 0. Rotas removidas (`/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`, `/more`) redirecionam para `/`. Percentuais em pt-BR ("12,1% a.a."). **Ainda abertos (de propósito, Fases 1–3):** 116, 117, 118, 119 — o Radar continua em 22 anos e 8 meses porque a projeção realista ainda não foi construída. |

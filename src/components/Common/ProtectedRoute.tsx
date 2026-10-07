@@ -1,11 +1,12 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import LoadingState from './LoadingState'
 
 export function ProtectedRoute() {
   const { user, currentUser, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) return null
+  if (loading) return <LoadingState />
   if (!user) return <Navigate to="/login" replace />
   if (!currentUser && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />

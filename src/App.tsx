@@ -7,14 +7,11 @@ import Signup from './pages/Signup'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Portfolio from './pages/Portfolio'
-import Simulator from './pages/Simulator'
-import Expenses from './pages/Expenses'
 import Distribution from './pages/Distribution'
-import Installments from './pages/Installments'
-import Calendar from './pages/Calendar'
-import Report from './pages/Report'
-import Settings from './pages/Settings'
-import More from './pages/More'
+import Account from './pages/Account'
+
+// Simulator, Expenses, Installments, Calendar, Report e Settings continuam no disco como
+// páginas-stub, mas sem rota nem item de menu até seus milestones (decisão do QA de 07/10/2026).
 
 function App() {
   return (
@@ -32,14 +29,8 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/simulator" element={<Simulator />} />
-              <Route path="/expenses" element={<Expenses />} />
               <Route path="/distribution" element={<Distribution />} />
-              <Route path="/installments" element={<Installments />} />
-              <Route path="/calendar" element={<Calendar />} />
-              <Route path="/report" element={<Report />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/more" element={<More />} />
+              <Route path="/account" element={<Account />} />
             </Route>
           </Route>
 

@@ -1,6 +1,7 @@
 import type { AssetWithId } from '../../types/asset'
 import EmptyState from '../Common/EmptyState'
 import Button from '../Common/Button'
+import { formatPercent } from '../../utils/formatPercent'
 
 interface AssetListProps {
   assets: AssetWithId[]
@@ -45,7 +46,7 @@ export default function AssetList({ assets, onEdit, onArchive }: AssetListProps)
             <div className="mt-1 flex gap-4 text-sm text-gray-600">
               <span>{ASSET_CLASS_LABELS[asset.assetClass] || asset.assetClass}</span>
               <span>{formatCurrency(asset.currentValue)}</span>
-              <span className="text-gray-500">{(asset.expectedReturnRate * 100).toFixed(1)}% a.a.</span>
+              <span className="text-gray-500">{formatPercent(asset.expectedReturnRate * 100)} a.a.</span>
             </div>
           </div>
 

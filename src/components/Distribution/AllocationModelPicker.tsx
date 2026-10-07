@@ -9,6 +9,7 @@ import type { CustomAllocation, DistributionModelChoice } from '../../types/dist
 import FormField from '../Common/FormField'
 import AllocationBar from './AllocationBar'
 import AssetClassGlossary from './AssetClassGlossary'
+import { formatPercent } from '../../utils/formatPercent'
 
 interface AllocationModelPickerProps {
   value: DistributionModelChoice
@@ -92,7 +93,7 @@ export default function AllocationModelPicker({
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-gray-700">{OSCILLATION_LABELS[oscillation]}</p>
-                <p className="text-xs text-gray-500">~{(expectedReturn * 100).toFixed(1)}% a.a.</p>
+                <p className="text-xs text-gray-500">~{formatPercent(expectedReturn * 100)} a.a.</p>
               </div>
             </button>
           )
@@ -186,7 +187,7 @@ export default function AllocationModelPicker({
               </p>
               <p className="text-xs text-gray-500">
                 ~
-                {(
+                {formatPercent(
                   calculateModelExpectedReturn({
                     label: 'Personalizado',
                     stocks: customValue.stocks / 100,
@@ -194,8 +195,8 @@ export default function AllocationModelPicker({
                     alternatives: customValue.alternatives / 100,
                     cash: customValue.cash / 100,
                   }) * 100
-                ).toFixed(1)}
-                % a.a.
+                )}{' '}
+                a.a.
               </p>
             </div>
           </div>
@@ -205,7 +206,7 @@ export default function AllocationModelPicker({
               errors?.total ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50'
             }`}
           >
-            Soma: {customTotal.toFixed(1)}%
+            Soma: {formatPercent(customTotal)}
             {errors?.total && <p className="mt-1 font-normal">{errors.total}</p>}
           </div>
         </div>

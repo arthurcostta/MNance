@@ -30,16 +30,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // Evita que a resposta de um login antigo (ex.: logout logo depois do login)
+    // sobrescreva o estado de uma emissão mais nova do onAuthStateChanged.
+    let latestEmission = 0
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const emission = ++latestEmission
       setUser(firebaseUser)
-      if (firebaseUser) {
-        getUserDocument(firebaseUser.uid)
-          .then(setCurrentUser)
-          .finally(() => setLoading(false))
-      } else {
+
+      if (!firebaseUser) {
         setCurrentUser(null)
         setLoading(false)
+        return
       }
+
+      // No login, o `loading` já foi para false na 1ª emissão (null, sem sessão). Sem religar
+      // aqui, existe uma janela com user preenchido, loading=false e currentUser=null — e o
+      // ProtectedRoute manda o usuário de volta ao onboarding. React agrupa as duas
+      // atualizações no mesmo render, então não há frame intermediário.
+      setLoading(true)
+      getUserDocument(firebaseUser.uid)
+        .then((doc) => {
+          if (emission === latestEmission) setCurrentUser(doc)
+        })
+        .catch((error) => {
+          console.error('Erro ao carregar o documento do usuário:', error)
+          if (emission === latestEmission) setCurrentUser(null)
+        })
+        .finally(() => {
+          if (emission === latestEmission) setLoading(false)
+        })
     })
     return unsubscribe
   }, [])

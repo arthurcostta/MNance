@@ -7,6 +7,7 @@ import ProjectionChart from '../components/Dashboard/ProjectionChart'
 import Card from '../components/Common/Card'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
+import { formatPercent } from '../utils/formatPercent'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -120,7 +121,7 @@ export default function Dashboard() {
           <p className="mt-2 text-sm text-gray-800">
             {distributionSummary.bucketCount}{' '}
             {distributionSummary.bucketCount === 1 ? 'objetivo de investimento' : 'objetivos de investimento'}{' '}
-            — retorno esperado {(distributionSummary.expectedReturn * 100).toFixed(1)}% a.a.
+            — retorno esperado {formatPercent(distributionSummary.expectedReturn * 100)} a.a.
           </p>
           <Link to="/distribution" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
             Editar distribuição

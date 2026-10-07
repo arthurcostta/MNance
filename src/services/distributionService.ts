@@ -3,6 +3,7 @@ import { db } from './firebase'
 import type { Distribution, PaydaySplit } from '../types/distribution'
 import type { RiskProfile } from '../types/user'
 import { type AllocationModelKey } from '../core/allocationModels'
+import { generateId } from '../utils/generateId'
 
 const RISK_PROFILE_TO_MODEL: Record<RiskProfile, AllocationModelKey> = {
   conservative: 'CONSERVATIVE',
@@ -36,7 +37,7 @@ export function getDefaultDistribution(
       : {}),
     investmentBuckets: [
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name: 'Meus Investimentos',
         percentOfInvestments: 100,
         allocationModel: RISK_PROFILE_TO_MODEL[riskProfile],
@@ -74,4 +75,28 @@ export async function updateDistribution(
     ...data,
     updatedAt: serverTimestamp(),
   })
+}
+
+// Usado pelo Onboarding ao salvar. Reeditar o onboarding NÃO pode jogar fora uma
+// Distribuição já personalizada (achado do QA de 07/10/2026: "Atualizar" trocava os
+// objetivos e percentuais do usuário pelo default). Só cria quando não existe; se o 2º
+// pagamento foi adicionado depois, acrescenta apenas o split dele. Se foi removido, o
+// payday2Split fica órfão e inofensivo — useDistribution deriva hasSecondPayday do User.
+export async function ensureDistribution(
+  uid: string,
+  riskProfile: RiskProfile,
+  hasSecondPayday: boolean
+): Promise<void> {
+  const existing = await getDistribution(uid)
+  if (!existing) {
+    await setDistribution(uid, getDefaultDistribution(riskProfile, hasSecondPayday))
+    return
+  }
+
+  if (hasSecondPayday && existing.payday1Split && !existing.payday2Split) {
+    const { payday2Split, payday1IncomeSharePercent } = getDefaultDistribution(riskProfile, true)
+    if (payday2Split && payday1IncomeSharePercent !== undefined) {
+      await updateDistribution(uid, { payday2Split, payday1IncomeSharePercent })
+    }
+  }
 }

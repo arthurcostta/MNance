@@ -9,6 +9,7 @@ import EssentialExpensesSection from '../components/Distribution/EssentialExpens
 import Card from '../components/Common/Card'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
+import { formatPercent } from '../utils/formatPercent'
 
 export default function Distribution() {
   const { user, currentUser } = useAuth()
@@ -85,7 +86,7 @@ export default function Distribution() {
 
       {goalCheck && (
         <Card className="mb-6 text-sm">
-          Retorno esperado: <span className="font-medium">{(blendedExpectedReturn * 100).toFixed(1)}% a.a.</span>
+          Retorno esperado: <span className="font-medium">{formatPercent(blendedExpectedReturn * 100)} a.a.</span>
           {' — '}
           {goalCheck.reachable ? (
             <span className="font-medium text-green-700">bate sua meta ✅</span>

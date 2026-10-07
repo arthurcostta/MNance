@@ -6,6 +6,8 @@ import {
   type InvestmentBucketErrors,
 } from '../../hooks/useDistribution'
 import type { CustomAllocation, InvestmentBucket } from '../../types/distribution'
+import { generateId } from '../../utils/generateId'
+import { formatPercent } from '../../utils/formatPercent'
 import AllocationModelPicker from './AllocationModelPicker'
 import AssetClassGlossary from './AssetClassGlossary'
 import FormField from '../Common/FormField'
@@ -24,7 +26,7 @@ const DEFAULT_CUSTOM: CustomAllocation = { stocks: 30, bonds: 40, alternatives: 
 
 function createEmptyBucket(): InvestmentBucket {
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     name: '',
     percentOfInvestments: 0,
     allocationModel: 'ALL_WEATHER',
@@ -121,7 +123,7 @@ export default function InvestmentBucketsForm({
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Distribuído</p>
-            <p className="mt-1 text-lg font-bold">{total.toFixed(1)}%</p>
+            <p className="mt-1 text-lg font-bold">{formatPercent(total)}</p>
           </div>
           <div
             className={`text-sm font-medium ${
@@ -131,8 +133,8 @@ export default function InvestmentBucketsForm({
             {Math.abs(total - 100) < 0.01
               ? '✓ Fechado em 100%'
               : total < 100
-                ? `Faltam ${(100 - total).toFixed(1)}%`
-                : `Excedeu ${(total - 100).toFixed(1)}%`}
+                ? `Faltam ${formatPercent(100 - total)}`
+                : `Excedeu ${formatPercent(total - 100)}`}
           </div>
         </div>
         <div className="mt-2 h-2 rounded bg-gray-200">

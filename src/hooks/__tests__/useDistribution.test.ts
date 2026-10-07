@@ -33,13 +33,13 @@ describe('validateNivelUm', () => {
   it('should error with the exact shortfall when the sum is 95', () => {
     const input = { ...valid, investmentsPercent: 20 }
     const errors = validateNivelUm(input)
-    expect(errors.total).toContain('5.0%')
+    expect(errors.total).toBe('Faltam 5,0% para completar 100%.')
   })
 
   it('should error with the exact excess when the sum is 105', () => {
     const input = { ...valid, investmentsPercent: 30 }
     const errors = validateNivelUm(input)
-    expect(errors.total).toContain('5.0%')
+    expect(errors.total).toBe('A soma excedeu 100% em 5,0%.')
   })
 
   it('should tolerate floating-point rounding (33.33 + 33.33 + 33.34 + 0 + 0)', () => {

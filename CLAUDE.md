@@ -354,4 +354,43 @@ do M4 começar.)*
   documento legado M5, card do Dashboard) pendente de execução pelo usuário — dev server
   disponível em `http://localhost:5173` nesta sessão.
 
-**Próximo:** M6 — Simulador de Cenários (Feature #3).
+> **Lacuna de documentação:** o M5.6 (valor recebido por pagamento em R$ + Nível 2 explicado) está
+> implementado e testado, mas **não tem entrada própria acima**; o M5.7 só chegou a um rascunho (ver abaixo).
+
+**M5.8 · Fase 0 — Correções críticas do QA de 07/10/2026: concluída (sem commit até o usuário aprovar).**
+Origem: pente fino de QA em navegador automatizado (persona "Rafael"), registrado em
+`cenarios-de-teste.md` §17 (cenários 113–120) e no "Registro de Execução". O plano completo
+(M5.8 → M5.10) está no plano de execução da sessão.
+- **Bug "todo login cai no onboarding"** — `context/AuthContext.tsx`: o `loading` já era `false`
+  desde a 1ª emissão do Firebase (`null`, sem sessão); no login, `user` chegava antes do
+  documento `currentUser` e `ProtectedRoute` redirecionava para `/onboarding`. Agora cada emissão
+  com usuário religa `loading` na mesma atualização e só desliga depois de `getUserDocument`
+  (com guarda contra resposta atrasada de emissão antiga). `ProtectedRoute` mostra `LoadingState`
+  em vez de `null`. `console.log` de depuração removidos.
+- **Reeditar o onboarding não apaga mais a Distribuição** — `services/distributionService.ts`:
+  nova `ensureDistribution` (só cria se não existe; se o 2º pagamento foi adicionado depois,
+  acrescenta só o split dele). `useOnboarding.save` passa a usá-la no lugar de `setDistribution`.
+- **Navegação enxuta** — só Radar, Distribuição, Portfólio e **Conta** (`/account`, nova
+  `pages/Account.tsx`: nome, e-mail, "Editar onboarding" e **"Sair"**; no desktop "Conta" e "Sair"
+  ficam no rodapé da sidebar). Removidos `MORE_NAV`/`ALL_NAV`, `pages/More.tsx` e as rotas de
+  Simulador, Despesas, Parcelas, Agenda, Relatório e Configurações — **as páginas-stub continuam
+  em `src/pages/`** para religar (rota em `App.tsx` + item em `navItems.ts`) quando cada feature
+  for construída.
+- **M5.7 parcial descartado:** apagados `types/fixedContribution.ts`,
+  `services/fixedContributionService.ts`, `hooks/useFixedContributions.ts` e as funções
+  `calculateMonthlyFlow`/`buildProjectionStreams` de `useDistribution.ts` (o aporte fixo agora vira
+  atributo do **ativo**, M5.8 Fase 2). **Mantidos mas ainda não ligados a nenhuma tela:**
+  `core/streamProjection.ts` (motor por fluxos, limpo: `simulateStreams`,
+  `calculateGoalTimelineFromStreams`, `yearlySeries`), `core/inflation.ts` e `User.inflationRate?`.
+  **O Radar ainda usa o aporte proxy `renda − custo essencial` e uma só taxa, sem inflação — a
+  projeção segue otimista até a Fase 3.**
+- Menores: `utils/formatPercent.ts` (vírgula decimal, "12,1%") em todos os pontos de exibição;
+  `utils/generateId.ts` substitui `crypto.randomUUID` (que só existe em HTTPS/localhost e quebra o
+  teste no celular via `http://<IP-local>`).
+- `npm test`: **181 testes, 17 arquivos**; `tsc -b`, `oxlint` (só warnings antigos de
+  `set-state-in-effect`) e `npm run build` sem erro. Verificado no navegador: cenários 113, 114, 115.
+
+**Próximo:** M5.8 Fases 1–3 (Distribuição sem Nível 2 + destino do saldo; aporte programado por
+ativo + catálogo corrigido; motor de projeção realista no Radar), depois M5.9 (tela Investimentos
+com check-in mensal) e M5.10 (push gratuito via FCM + GitHub Actions). M6 — Simulador de Cenários
+(Feature #3) só depois.

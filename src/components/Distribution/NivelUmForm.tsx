@@ -14,6 +14,7 @@ import FormField from '../Common/FormField'
 import CurrencyInput from '../Common/CurrencyInput'
 import Alert from '../Common/Alert'
 import Button from '../Common/Button'
+import { formatPercent } from '../../utils/formatPercent'
 
 interface NivelUmFormProps {
   hasSecondPayday: boolean
@@ -147,7 +148,7 @@ export default function NivelUmForm({
 
           <FormField
             label="% da renda que chega no 1º pagamento"
-            hint={`O restante (${(100 - incomeSharePercent).toFixed(1)}%) cai no 2º pagamento.`}
+            hint={`O restante (${formatPercent(100 - incomeSharePercent)}) cai no 2º pagamento.`}
           >
             {(fieldProps) => (
               <input

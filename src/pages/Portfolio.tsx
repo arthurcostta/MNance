@@ -10,6 +10,7 @@ import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
+import { formatPercent } from '../utils/formatPercent'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -115,7 +116,7 @@ export default function Portfolio() {
         <Card>
           <p className="text-xs font-medium text-gray-600">Retorno Ponderado</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">
-            {portfolio.totalValue > 0 ? `${(portfolio.weightedReturn * 100).toFixed(2)}% a.a.` : '—'}
+            {portfolio.totalValue > 0 ? `${formatPercent(portfolio.weightedReturn * 100, 2)} a.a.` : '—'}
           </p>
         </Card>
       </div>

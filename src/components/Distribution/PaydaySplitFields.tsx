@@ -1,5 +1,6 @@
 import { calculateDistributionAmounts, type NivelUmErrors, type NivelUmInput } from '../../hooks/useDistribution'
 import FormField from '../Common/FormField'
+import { formatPercent } from '../../utils/formatPercent'
 
 interface PaydaySplitFieldsProps {
   title: string
@@ -82,7 +83,7 @@ export default function PaydaySplitFields({
           errors.total ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50'
         }`}
       >
-        Soma: {total.toFixed(1)}%{errors.total && <p className="mt-1 font-normal">{errors.total}</p>}
+        Soma: {formatPercent(total)}{errors.total && <p className="mt-1 font-normal">{errors.total}</p>}
       </div>
     </div>
   )

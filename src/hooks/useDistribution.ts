@@ -19,6 +19,8 @@ import type {
   PaydaySplit,
 } from '../types/distribution'
 import type { RiskProfile } from '../types/user'
+import { generateId } from '../utils/generateId'
+import { formatPercent } from '../utils/formatPercent'
 
 export type NivelUmInput = PaydaySplit
 export type NivelUmErrors = Partial<Record<keyof PaydaySplit, string>> & { total?: string }
@@ -39,8 +41,8 @@ function sumError(total: number): string | undefined {
   const diff = total - 100
   if (Math.abs(diff) < SUM_TOLERANCE) return undefined
   return diff > 0
-    ? `A soma excedeu 100% em ${diff.toFixed(1)}%.`
-    : `Faltam ${Math.abs(diff).toFixed(1)}% para completar 100%.`
+    ? `A soma excedeu 100% em ${formatPercent(diff)}.`
+    : `Faltam ${formatPercent(Math.abs(diff))} para completar 100%.`
 }
 
 // Nível 1 agora valida um PaydaySplit de 5 campos (ganhou companyCashPercent no M5.5).
@@ -311,7 +313,7 @@ export function resolveStoredDistribution(
         },
         investmentBuckets: [
           {
-            id: crypto.randomUUID(),
+            id: generateId(),
             name: 'Meus Investimentos',
             percentOfInvestments: 100,
             allocationModel: legacy.allocationModel,

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { calculateEmergencyReserve } from '../core/emergencyReserve'
 import { getUserDocument, setUserDocument } from '../services/userService'
-import { getDefaultDistribution, setDistribution } from '../services/distributionService'
+import { ensureDistribution, getDefaultDistribution } from '../services/distributionService'
 import type { RiskProfile } from '../types/user'
 
 export interface OnboardingData {
@@ -173,7 +173,7 @@ export function useOnboarding(uid: string | undefined) {
         darkMode: data.darkMode,
         onboardingCompletedAt: Timestamp.now(),
       })
-      await setDistribution(uidToSave, getDefaultDistribution(data.riskProfile, data.payday2 !== null))
+      await ensureDistribution(uidToSave, data.riskProfile, data.payday2 !== null)
     },
     [data, emergencyReserve]
   )

@@ -5,6 +5,7 @@ import type { AssetWithId } from '../../types/asset'
 import CurrencyInput from '../Common/CurrencyInput'
 import FormField from '../Common/FormField'
 import Button from '../Common/Button'
+import { formatPercent } from '../../utils/formatPercent'
 
 interface AssetFormProps {
   mode: AssetFormMode
@@ -109,7 +110,7 @@ export default function AssetForm({
               <option value="">Escolha um instrumento...</option>
               {Object.entries(ASSET_RETURN_RATES).map(([key, rate]) => (
                 <option key={key} value={key}>
-                  {rate.label} ({(rate.annualRate * 100).toFixed(1)}%)
+                  {rate.label} ({formatPercent(rate.annualRate * 100)})
                 </option>
               ))}
             </select>

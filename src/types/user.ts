@@ -22,6 +22,9 @@ export interface User {
   // Marcado true quando o usuário dispensa o banner de seed de patrimônio em M3 (Portfólio).
   // Nunca retorna false — é permanente para evitar re-exibição.
   portfolioSeedDismissed?: boolean
+  // Taxa de inflação esperada (fração, ex: 0.045 = 4,5% a.a.). Ausente = DEFAULT_INFLATION_RATE.
+  // Usado na projeção de patrimônio: converte taxas nominais em reais, valores em "valores de hoje".
+  inflationRate?: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }
