@@ -10,13 +10,13 @@ import {
   type TooltipItem,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import type { ProjectionPoint } from '../../hooks/useDashboard'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
 interface ProjectionChartProps {
-  series: ProjectionPoint[]
-  showBoosted: boolean
+  series: number[]
+  boostedSeries: number[] | null
+  goalAmount: number
 }
 
 function formatCurrencyCompact(value: number): string {
@@ -35,17 +35,17 @@ function formatCurrency(value: number): string {
   })
 }
 
-export default function ProjectionChart({ series, showBoosted }: ProjectionChartProps) {
+export default function ProjectionChart({ series, boostedSeries, goalAmount }: ProjectionChartProps) {
   if (series.length === 0) {
     return null
   }
 
-  const labels = series.map((point) => (point.year === 0 ? 'Hoje' : `Ano ${point.year}`))
+  const labels = series.map((_, idx) => (idx === 0 ? 'Hoje' : `Ano ${idx}`))
 
   const datasets = [
     {
-      label: 'Projeção atual',
-      data: series.map((point) => point.base),
+      label: 'Projeção (valores de hoje)',
+      data: series,
       borderColor: '#2563eb',
       backgroundColor: 'rgba(37, 99, 235, 0.1)',
       fill: true,
@@ -53,11 +53,11 @@ export default function ProjectionChart({ series, showBoosted }: ProjectionChart
       pointRadius: 0,
       borderWidth: 2,
     },
-    ...(showBoosted
+    ...(boostedSeries
       ? [
           {
             label: 'Com aporte +20%',
-            data: series.map((point) => point.boosted ?? null),
+            data: boostedSeries,
             borderColor: '#16a34a',
             backgroundColor: 'transparent',
             borderDash: [6, 4],
@@ -68,6 +68,17 @@ export default function ProjectionChart({ series, showBoosted }: ProjectionChart
           },
         ]
       : []),
+    {
+      label: 'Meta',
+      data: series.map(() => goalAmount),
+      borderColor: '#dc2626',
+      borderDash: [4, 4],
+      backgroundColor: 'transparent',
+      fill: false,
+      tension: 0,
+      pointRadius: 0,
+      borderWidth: 1,
+    },
   ]
 
   return (
@@ -79,7 +90,7 @@ export default function ProjectionChart({ series, showBoosted }: ProjectionChart
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
-            legend: { display: showBoosted, position: 'top' },
+            legend: { display: true, position: 'top' },
             tooltip: {
               callbacks: {
                 label: (item: TooltipItem<'line'>) =>
@@ -90,9 +101,10 @@ export default function ProjectionChart({ series, showBoosted }: ProjectionChart
             },
           },
           scales: {
-            x: { ticks: { maxTicksLimit: 8 } },
+            x: { ticks: { maxTicksLimit: 8 }, title: { display: true, text: 'Anos' } },
             y: {
               ticks: { callback: (value) => formatCurrencyCompact(Number(value)) },
+              title: { display: true, text: 'Valores de hoje' },
             },
           },
         }}

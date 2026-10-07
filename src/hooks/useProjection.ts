@@ -9,11 +9,9 @@
 import { useMemo } from 'react'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
-import { useDistribution } from './useDistribution'
-import { simulateStreams, calculateGoalTimelineFromStreams, yearlySeries, PatrimonyStream } from '../core/streamProjection'
+import { calculateGoalTimelineFromStreams, yearlySeries, type PatrimonyStream } from '../core/streamProjection'
 import { toRealRate, DEFAULT_INFLATION_RATE } from '../core/inflation'
 import { calculateModelExpectedReturn, modelKeyForRiskProfile, ALLOCATION_MODELS } from '../core/allocationModels'
-import { calculateWeightedReturn } from '../core/weightedReturn'
 import type { GoalTimelineResult } from '../core/goalTimeline'
 
 interface ProjectionMetrics {
@@ -92,7 +90,7 @@ function calculateProjectionMetrics(
   nominalContributionRate: number,
   goalAmount: number,
   goalYears: number,
-  inflationRate: number
+  _inflationRate: number
 ): ProjectionMetrics {
   const base = calculateGoalTimelineFromStreams({
     streams,
@@ -143,7 +141,6 @@ function calculateProjectionMetrics(
 export function useProjection(investmentsPlan: number) {
   const { user, currentUser } = useAuth()
   const portfolio = usePortfolio(user?.uid)
-  const distribution = useDistribution(user?.uid)
 
   const inflationRate = currentUser?.inflationRate ?? DEFAULT_INFLATION_RATE
 
@@ -152,7 +149,6 @@ export function useProjection(investmentsPlan: number) {
 
     // Define a taxa do aporte livre (retorno da carteira real ou estratégia fallback)
     let contributionRate = 0
-    let isEstimated = false
 
     if (portfolio.totalValue > 0 && portfolio.weightedReturn !== undefined) {
       // Tem ativos reais: usa a taxa média da carteira
@@ -162,11 +158,10 @@ export function useProjection(investmentsPlan: number) {
       const modelKey = modelKeyForRiskProfile(currentUser.riskProfile as any)
       const model = ALLOCATION_MODELS[modelKey]
       contributionRate = calculateModelExpectedReturn(model)
-      isEstimated = true
     }
 
     // Constrói os fluxos
-    const { streams, estimated } = buildProjectionStreams(
+    const { streams } = buildProjectionStreams(
       portfolio.totalValue > 0
         ? portfolio.assets?.map((a) => ({
             currentValue: a.currentValue,
@@ -208,7 +203,7 @@ export function useProjection(investmentsPlan: number) {
       currentUser.goalYears,
       inflationRate
     )
-  }, [currentUser, portfolio.totalValue, portfolio.assets, portfolio.weightedReturn, distribution, inflationRate, investmentsPlan])
+  }, [currentUser, portfolio.totalValue, portfolio.assets, portfolio.weightedReturn, inflationRate, investmentsPlan])
 
   return {
     metrics,

@@ -1,151 +1,59 @@
 import { useMemo } from 'react'
 import { useAuth } from './useAuth'
-import { usePortfolio } from './usePortfolio'
-import { useDistribution, type DistributionAmounts, type MonthlyFlow } from './useDistribution'
-import { calculateGoalTimeline, type GoalTimelineResult } from '../core/goalTimeline'
-import { calculateProjection } from '../core/projection'
-import { annualToMonthlyRate } from '../core/compoundInterest'
-
-// Feature #2 (Radar/Dashboard) — decisão de produto fechada em M4: o PRD (§4.2) pede a
-// velocidade de crescimento como "última média de 3 meses de aporte real + ganhos
-// projetados", mas não existe (nem está previsto até M15) nenhum ledger de aportes reais.
-// Substituto (desvio consciente, mesmo padrão de emergencyReserve.ts em M1): aporte mensal
-// derivado de renda - custo, mais o ganho projetado do patrimônio já investido.
-const BOOST_FACTOR = 1.2
-
-export interface DashboardMetricsInput {
-  currentPatrimony: number
-  monthlyIncomeNet: number
-  essentialMonthlyCost: number
-  weightedReturn: number
-  goalAmount: number
-}
+import { useDistribution } from './useDistribution'
+import { useProjection } from './useProjection'
 
 export interface DashboardMetrics {
-  monthlyContribution: number
   velocity: number
   budgetAlert: boolean
-  base: GoalTimelineResult
-  boosted: GoalTimelineResult | null
+  meetsDeadline: boolean
+  deadlineGapYears: number | null
+  series: number[]
+  boostedSeries: number[] | null
   showBoostInsight: boolean
 }
 
-export function calculateDashboardMetrics({
-  currentPatrimony,
-  monthlyIncomeNet,
-  essentialMonthlyCost,
-  weightedReturn,
-  goalAmount,
-}: DashboardMetricsInput): DashboardMetrics {
-  const monthlyContribution = monthlyIncomeNet - essentialMonthlyCost
-  const budgetAlert = essentialMonthlyCost > monthlyIncomeNet
+export function useDashboard(): DashboardMetrics & { loading: boolean; inflationRate: number } {
+  const { currentUser } = useAuth()
+  const distribution = useDistribution(useAuth().user?.uid)
 
-  const velocity = monthlyContribution + currentPatrimony * annualToMonthlyRate(weightedReturn)
+  // Aporte planejado = fatia de Investimentos + saldo roteado
+  const investmentsPlan = distribution.flow?.investmentsPlan ?? 0
 
-  const base = calculateGoalTimeline({
-    currentPatrimony,
-    monthlyContribution,
-    annualReturnRate: weightedReturn,
-    goalAmount,
-  })
-
-  const alreadyReached = base.reachable && base.months === 0
-
-  let boosted: GoalTimelineResult | null = null
-  let showBoostInsight = false
-
-  if (monthlyContribution > 0 && !alreadyReached) {
-    boosted = calculateGoalTimeline({
-      currentPatrimony,
-      monthlyContribution: monthlyContribution * BOOST_FACTOR,
-      annualReturnRate: weightedReturn,
-      goalAmount,
-    })
-
-    // "Numericamente idêntico ao base" (decisão #4 do plano de M4): comparar reachable +
-    // months em vez de patrimonyAtCap evita falso-negativo por ruído de ponto flutuante, e
-    // cobre o caso em que nem o aporte turbinado muda o resultado dentro do teto de 100 anos.
-    const sameOutcome = boosted.reachable === base.reachable && boosted.months === base.months
-    showBoostInsight = !sameOutcome
-  }
-
-  return { monthlyContribution, velocity, budgetAlert, base, boosted, showBoostInsight }
-}
-
-export interface ProjectionPoint {
-  year: number
-  base: number
-  boosted?: number
-}
-
-export interface DistributionSummary {
-  // Fatias do Nível 1, sem o saldo das essenciais.
-  amounts: DistributionAmounts
-  // Valores efetivos: investmentsPlan e leisureTotal já incluem o saldo roteado pela regra.
-  flow: MonthlyFlow
-}
-
-export function useDashboard() {
-  const { user, currentUser, loading: authLoading } = useAuth()
-  const portfolio = usePortfolio(user?.uid)
-  const distribution = useDistribution(user?.uid)
+  // Usa o motor unificado de projeção
+  const projection = useProjection(investmentsPlan)
 
   const metrics = useMemo(() => {
-    if (!currentUser) return null
-    return calculateDashboardMetrics({
-      currentPatrimony: portfolio.totalValue,
-      monthlyIncomeNet: currentUser.monthlyIncomeNet,
-      essentialMonthlyCost: currentUser.essentialMonthlyCost,
-      weightedReturn: portfolio.weightedReturn,
-      goalAmount: currentUser.goalAmount,
-    })
-  }, [currentUser, portfolio.totalValue, portfolio.weightedReturn])
-
-  const chartSeries = useMemo<ProjectionPoint[]>(() => {
-    if (!metrics) return []
-
-    const horizonYears = Math.max(
-      1,
-      Math.min(Math.ceil(metrics.base.years ?? metrics.base.capYears), metrics.base.capYears)
-    )
-
-    const points: ProjectionPoint[] = []
-    for (let year = 0; year <= horizonYears; year++) {
-      const point: ProjectionPoint = {
-        year,
-        base: calculateProjection({
-          currentPatrimony: portfolio.totalValue,
-          monthlyContribution: metrics.monthlyContribution,
-          annualReturnRate: portfolio.weightedReturn,
-          years: year,
-        }).finalAmount,
+    if (!projection.metrics) {
+      return {
+        velocity: 0,
+        budgetAlert: false,
+        meetsDeadline: false,
+        deadlineGapYears: null,
+        series: [],
+        boostedSeries: null,
+        showBoostInsight: false,
       }
-
-      if (metrics.showBoostInsight) {
-        point.boosted = calculateProjection({
-          currentPatrimony: portfolio.totalValue,
-          monthlyContribution: metrics.monthlyContribution * BOOST_FACTOR,
-          annualReturnRate: portfolio.weightedReturn,
-          years: year,
-        }).finalAmount
-      }
-
-      points.push(point)
     }
-    return points
-  }, [metrics, portfolio.totalValue, portfolio.weightedReturn])
 
-  const distributionSummary = useMemo<DistributionSummary | null>(() => {
-    if (!currentUser || distribution.loading) return null
-    return { amounts: distribution.amounts, flow: distribution.flow }
-  }, [currentUser, distribution])
+    // Budget alert = custo essencial > renda (decisão do M4, inalterada)
+    const budgetAlert = (currentUser?.essentialMonthlyCost ?? 0) > (currentUser?.monthlyIncomeNet ?? 0)
+
+    return {
+      velocity: projection.metrics.velocity,
+      budgetAlert,
+      meetsDeadline: projection.metrics.meetsDeadline,
+      deadlineGapYears: projection.metrics.deadlineGapYears,
+      series: projection.metrics.series,
+      boostedSeries: projection.metrics.boostedSeries,
+      showBoostInsight: projection.metrics.showBoostInsight,
+    }
+  }, [projection.metrics, currentUser?.essentialMonthlyCost, currentUser?.monthlyIncomeNet])
 
   return {
-    loading: authLoading || portfolio.loadingInitial,
-    metrics,
-    chartSeries,
-    currentPatrimony: portfolio.totalValue,
-    hasAssets: portfolio.assets.length > 0,
-    distributionSummary,
+    ...metrics,
+    loading: projection.loading || !currentUser,
+    inflationRate: projection.inflationRate,
   }
 }
+
