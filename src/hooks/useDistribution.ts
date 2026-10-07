@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from './useAuth'
-import { usePortfolio } from './usePortfolio'
-import { ALLOCATION_MODELS, calculateModelExpectedReturn, type AllocationModel } from '../core/allocationModels'
-import { calculateWeightedReturn } from '../core/weightedReturn'
+import { useEssentialExpenses } from './useEssentialExpenses'
+import { ALLOCATION_MODELS, type AllocationModel } from '../core/allocationModels'
 import { calculateEmergencyReserve } from '../core/emergencyReserve'
-import { calculateGoalTimeline, type GoalTimelineResult } from '../core/goalTimeline'
 import {
   getDefaultDistribution,
   getDistribution,
@@ -15,11 +13,8 @@ import type {
   CustomAllocation,
   Distribution,
   DistributionModelChoice,
-  InvestmentBucket,
   PaydaySplit,
 } from '../types/distribution'
-import type { RiskProfile } from '../types/user'
-import { generateId } from '../utils/generateId'
 import { formatPercent } from '../utils/formatPercent'
 
 export type NivelUmInput = PaydaySplit
@@ -45,7 +40,7 @@ function sumError(total: number): string | undefined {
     : `Faltam ${formatPercent(Math.abs(diff))} para completar 100%.`
 }
 
-// Nível 1 agora valida um PaydaySplit de 5 campos (ganhou companyCashPercent no M5.5).
+// Valida um PaydaySplit de 5 campos (ganhou companyCashPercent no M5.5).
 export function validateNivelUm(input: PaydaySplit): NivelUmErrors {
   const errors: NivelUmErrors = {}
 
@@ -67,6 +62,7 @@ export function validateNivelUm(input: PaydaySplit): NivelUmErrors {
   return errors
 }
 
+// Hoje só o AllocationModelPicker usa (reaproveitado na tela Investimentos, M5.9).
 export function validateCustomAllocation(input: CustomAllocation): CustomAllocationErrors {
   const errors: CustomAllocationErrors = {}
 
@@ -138,45 +134,6 @@ export function resolveAllocationModel(
   return ALLOCATION_MODELS[choice]
 }
 
-export interface InvestmentBucketErrors {
-  total?: string
-  byBucket: Record<string, { name?: string; percentOfInvestments?: string }>
-}
-
-// Piso de 1 bucket é garantido pela UI (botão Remover trava em 1) — aqui só validamos
-// o que existe: nome obrigatório por bucket, soma de percentOfInvestments = 100.
-export function validateInvestmentBuckets(buckets: InvestmentBucket[]): InvestmentBucketErrors {
-  const byBucket: InvestmentBucketErrors['byBucket'] = {}
-
-  for (const bucket of buckets) {
-    const bucketErrors: { name?: string; percentOfInvestments?: string } = {}
-    if (!bucket.name.trim()) bucketErrors.name = 'Informe um nome para o objetivo.'
-    if (!isValidPercent(bucket.percentOfInvestments)) {
-      bucketErrors.percentOfInvestments = PERCENT_RANGE_ERROR
-    }
-    if (Object.keys(bucketErrors).length > 0) byBucket[bucket.id] = bucketErrors
-  }
-
-  const total = buckets.reduce((sum, bucket) => sum + bucket.percentOfInvestments, 0)
-  const totalError =
-    buckets.length === 0 ? 'Adicione pelo menos um objetivo de investimento.' : sumError(total)
-
-  return { total: totalError, byBucket }
-}
-
-// Média ponderada do retorno esperado de cada bucket, peso = percentOfInvestments.
-// Reaproveita calculateWeightedReturn sem mudança — lista vazia retorna 0, nunca NaN.
-export function calculateBlendedExpectedReturn(buckets: InvestmentBucket[]): number {
-  return calculateWeightedReturn(
-    buckets.map((bucket) => ({
-      amount: bucket.percentOfInvestments,
-      expectedReturnRate: calculateModelExpectedReturn(
-        resolveAllocationModel(bucket.allocationModel, bucket.customAllocation)
-      ),
-    }))
-  )
-}
-
 export interface EssentialsComparison {
   budget: number
   real: number
@@ -187,6 +144,75 @@ export interface EssentialsComparison {
 // orçamento, negativo = estourou.
 export function calculateEssentialsComparison(budget: number, real: number): EssentialsComparison {
   return { budget, real, balance: budget - real }
+}
+
+// M5.8: Destino do saldo das essenciais.
+//
+// O saldo (orçado − real) é um valor PLANEJADO por mês — não existe ledger de gastos reais.
+// A regra é uma política permanente: "X% do saldo vai para Investimentos, o resto para Lazer",
+// válida todo mês até o usuário editar. Sem regra salva (undefined) o saldo NÃO é roteado
+// para lugar nenhum: o app não presume um destino que o usuário não declarou.
+
+export interface MonthlyFlowInput {
+  amounts: DistributionAmounts
+  // Soma da lista detalhada de despesas essenciais.
+  essentialsReal: number
+  // Sem lista, "real = 0" faria o saldo ser o orçamento inteiro — enganoso. Sem lista, não há saldo.
+  hasEssentialsList: boolean
+  // 0–100; undefined = decisão pendente.
+  surplusInvestmentsPercent?: number
+}
+
+export interface MonthlyFlow {
+  balance: number // orçado − real (0 sem lista)
+  surplus: number // saldo positivo
+  deficit: number // estouro: quanto o real passa do orçado (positivo)
+  surplusPending: boolean // há saldo e nenhuma regra salva
+  surplusToInvestments: number
+  surplusToLeisure: number
+  // Fatia de Investimentos + saldo roteado = aporte mensal PLANEJADO (fonte única para o Radar,
+  // a tela Investimentos e o lembrete).
+  investmentsPlan: number
+  leisureTotal: number // fatia de Lazer + saldo roteado
+}
+
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+export function calculateMonthlyFlow({
+  amounts,
+  essentialsReal,
+  hasEssentialsList,
+  surplusInvestmentsPercent,
+}: MonthlyFlowInput): MonthlyFlow {
+  // Arredonda a centavos só aqui: 3179.5500000000002 − 3179.55 não pode virar "saldo".
+  const balance = hasEssentialsList ? roundCents(amounts.essentials - essentialsReal) : 0
+  const surplus = Math.max(0, balance)
+  const deficit = Math.max(0, -balance)
+  const surplusPending = surplus > 0 && surplusInvestmentsPercent === undefined
+
+  let surplusToInvestments = 0
+  let surplusToLeisure = 0
+  if (surplus > 0 && surplusInvestmentsPercent !== undefined) {
+    surplusToInvestments = (surplus * surplusInvestmentsPercent) / 100
+    surplusToLeisure = surplus - surplusToInvestments
+  }
+
+  return {
+    balance,
+    surplus,
+    deficit,
+    surplusPending,
+    surplusToInvestments,
+    surplusToLeisure,
+    investmentsPlan: amounts.investments + surplusToInvestments,
+    leisureTotal: amounts.leisure + surplusToLeisure,
+  }
+}
+
+export function validateSurplusPercent(value: number): string | undefined {
+  return isValidPercent(value) ? undefined : PERCENT_RANGE_ERROR
 }
 
 // M5.6: Valor recebido por pagamento
@@ -253,93 +279,37 @@ export function validatePaydayAmounts(
 }
 
 interface ResolveContext {
-  riskProfile: RiskProfile
   hasSecondPayday: boolean
 }
 
-function hasFlatM5Shape(raw: Record<string, unknown>): boolean {
-  return (
-    typeof raw.essentialsPercent === 'number' &&
-    typeof raw.educationPercent === 'number' &&
-    typeof raw.leisurePercent === 'number' &&
-    typeof raw.investmentsPercent === 'number' &&
-    typeof raw.allocationModel !== 'undefined'
-  )
-}
-
-function hasNewShape(raw: Record<string, unknown>): boolean {
-  return (
-    typeof raw.payday1Split === 'object' &&
-    raw.payday1Split !== null &&
-    Array.isArray(raw.investmentBuckets)
-  )
-}
-
-// Guard de compatibilidade de runtime (não é script de migração multiusuário — só
-// relevante para a própria conta de teste usada nas sessões anteriores), com 4 casos:
-// (1) formato novo → usa direto; (2) formato M5 flat sem 2º pagamento → converte em
-// memória para 1 PaydaySplit + 1 bucket; (3) formato M5 flat COM 2º pagamento → não há
-// como migrar parcialmente (o doc antigo nunca soube de 2 pagamentos), cai no default
-// novo; (4) formato M2 (3 categorias) ou doc ausente/corrompido → cai no default novo.
-// Nunca escreve a conversão de volta no Firestore sozinho — só em memória, até o
-// usuário salvar algo manualmente.
+// Guard de runtime: aceita só o formato atual (tem payday1Split). Documento ausente ou de um
+// formato antigo (M2 com 3 categorias, M5 "flat") cai no default — desde o M5.8 não convertemos
+// mais o formato M5, que existia só para a conta de teste das primeiras sessões. O campo antigo
+// `investmentBuckets`, quando presente, passa batido e é ignorado. Nunca escreve de volta no
+// Firestore sozinho — só quando o usuário salva algo.
 export function resolveStoredDistribution(
   stored: Distribution | null,
   context: ResolveContext
 ): Omit<Distribution, 'updatedAt'> {
-  if (stored) {
-    const raw = stored as unknown as Record<string, unknown>
-
-    if (hasNewShape(raw)) {
-      return stored
-    }
-
-    if (hasFlatM5Shape(raw) && !context.hasSecondPayday) {
-      const legacy = stored as unknown as {
-        essentialsPercent: number
-        educationPercent: number
-        leisurePercent: number
-        investmentsPercent: number
-        allocationModel: DistributionModelChoice
-        customAllocation?: CustomAllocation
-      }
-      return {
-        payday1Split: {
-          essentialsPercent: legacy.essentialsPercent,
-          educationPercent: legacy.educationPercent,
-          leisurePercent: legacy.leisurePercent,
-          investmentsPercent: legacy.investmentsPercent,
-          companyCashPercent: 0,
-        },
-        investmentBuckets: [
-          {
-            id: generateId(),
-            name: 'Meus Investimentos',
-            percentOfInvestments: 100,
-            allocationModel: legacy.allocationModel,
-            ...(legacy.customAllocation ? { customAllocation: legacy.customAllocation } : {}),
-          },
-        ],
-      }
-    }
-  }
-
-  return getDefaultDistribution(context.riskProfile, context.hasSecondPayday)
+  if (stored?.payday1Split) return stored
+  return getDefaultDistribution(context.hasSecondPayday)
 }
 
 export function useDistribution(uid: string | undefined) {
   const { currentUser, refreshCurrentUser } = useAuth()
-  const portfolio = usePortfolio(uid)
+  // Uma única instância da lista de essenciais, compartilhada com a tela (via props): duas
+  // instâncias divergiriam depois de adicionar/excluir uma despesa.
+  const essentialExpenses = useEssentialExpenses(uid)
 
   const [payday1Split, setPayday1Split] = useState<PaydaySplit>(
-    () => getDefaultDistribution('moderate', false).payday1Split
+    () => getDefaultDistribution(false).payday1Split
   )
   const [payday2Split, setPayday2Split] = useState<PaydaySplit | undefined>(undefined)
   const [payday1IncomeSharePercent, setPayday1IncomeSharePercent] = useState<number | undefined>(
     undefined
   )
-  const [investmentBuckets, setInvestmentBuckets] = useState<InvestmentBucket[]>(
-    () => getDefaultDistribution('moderate', false).investmentBuckets
+  const [surplusInvestmentsPercent, setSurplusInvestmentsPercent] = useState<number | undefined>(
+    undefined
   )
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -357,13 +327,12 @@ export function useDistribution(uid: string | undefined) {
     getDistribution(uid).then((existing) => {
       if (cancelled) return
       const resolved = resolveStoredDistribution(existing, {
-        riskProfile: currentUser.riskProfile,
         hasSecondPayday: currentUser.payday2 != null,
       })
       setPayday1Split(resolved.payday1Split)
       setPayday2Split(resolved.payday2Split)
       setPayday1IncomeSharePercent(resolved.payday1IncomeSharePercent)
-      setInvestmentBuckets(resolved.investmentBuckets)
+      setSurplusInvestmentsPercent(resolved.surplusInvestmentsPercent)
       setLoadingInitial(false)
     })
     return () => {
@@ -382,25 +351,23 @@ export function useDistribution(uid: string | undefined) {
     return calculateDistributionAmounts(paydays, monthlyIncomeNet)
   }, [payday1Split, payday2Split, payday1IncomeSharePercent, hasSecondPayday, currentUser?.monthlyIncomeNet])
 
-  const blendedExpectedReturn = useMemo(
-    () => calculateBlendedExpectedReturn(investmentBuckets),
-    [investmentBuckets]
+  const hasEssentialsList = essentialExpenses.items.length > 0
+
+  const flow = useMemo(
+    () =>
+      calculateMonthlyFlow({
+        amounts,
+        essentialsReal: essentialExpenses.total,
+        hasEssentialsList,
+        surplusInvestmentsPercent,
+      }),
+    [amounts, essentialExpenses.total, hasEssentialsList, surplusInvestmentsPercent]
   )
 
   const emergencyReserve = useMemo(
     () => calculateEmergencyReserve({ monthlyIncomeNet: currentUser?.monthlyIncomeNet ?? 0 }),
     [currentUser?.monthlyIncomeNet]
   )
-
-  const goalCheck = useMemo<GoalTimelineResult | null>(() => {
-    if (!currentUser) return null
-    return calculateGoalTimeline({
-      currentPatrimony: portfolio.totalValue,
-      monthlyContribution: amounts.investments,
-      annualReturnRate: blendedExpectedReturn,
-      goalAmount: currentUser.goalAmount,
-    })
-  }, [currentUser, portfolio.totalValue, amounts.investments, blendedExpectedReturn])
 
   const saveNivelUm = useCallback(
     async (payload: {
@@ -447,16 +414,21 @@ export function useDistribution(uid: string | undefined) {
     [uid, currentUser, refreshCurrentUser]
   )
 
-  const saveInvestmentBuckets = useCallback(
-    async (buckets: InvestmentBucket[]) => {
+  const saveSurplusRule = useCallback(
+    async (percent: number) => {
       if (!uid) return
+      const validationError = validateSurplusPercent(percent)
+      if (validationError) {
+        setActionError(validationError)
+        throw new Error(validationError)
+      }
       setActionError(null)
       try {
-        await updateDistribution(uid, { investmentBuckets: buckets })
-        setInvestmentBuckets(buckets)
+        await updateDistribution(uid, { surplusInvestmentsPercent: percent })
+        setSurplusInvestmentsPercent(percent)
       } catch (error) {
         setActionError(
-          error instanceof Error ? error.message : 'Erro ao salvar os objetivos de investimento.'
+          error instanceof Error ? error.message : 'Erro ao salvar o destino do saldo.'
         )
         throw error
       }
@@ -465,18 +437,19 @@ export function useDistribution(uid: string | undefined) {
   )
 
   return {
-    loading: loadingInitial || portfolio.loadingInitial,
+    loading: loadingInitial || essentialExpenses.loadingInitial,
     hasSecondPayday,
     payday1Split,
     payday2Split,
     payday1IncomeSharePercent,
-    investmentBuckets,
+    surplusInvestmentsPercent,
     amounts,
-    blendedExpectedReturn,
+    flow,
+    essentialExpenses,
+    hasEssentialsList,
     emergencyReserve,
-    goalCheck,
     actionError,
     saveNivelUm,
-    saveInvestmentBuckets,
+    saveSurplusRule,
   }
 }

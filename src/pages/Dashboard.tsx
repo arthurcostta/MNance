@@ -7,7 +7,6 @@ import ProjectionChart from '../components/Dashboard/ProjectionChart'
 import Card from '../components/Common/Card'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
-import { formatPercent } from '../utils/formatPercent'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -112,17 +111,26 @@ export default function Dashboard() {
           <div className="space-y-1 text-sm text-gray-800">
             <p>Essenciais {formatCurrency(distributionSummary.amounts.essentials)}</p>
             <p>Educação {formatCurrency(distributionSummary.amounts.education)}</p>
-            <p>Lazer {formatCurrency(distributionSummary.amounts.leisure)}</p>
-            <p>Investimentos {formatCurrency(distributionSummary.amounts.investments)}</p>
+            <p>Lazer {formatCurrency(distributionSummary.flow.leisureTotal)}</p>
+            <p>Investimentos {formatCurrency(distributionSummary.flow.investmentsPlan)}</p>
             {distributionSummary.amounts.companyCash > 0 && (
               <p>Caixa da Empresa {formatCurrency(distributionSummary.amounts.companyCash)}</p>
             )}
           </div>
-          <p className="mt-2 text-sm text-gray-800">
-            {distributionSummary.bucketCount}{' '}
-            {distributionSummary.bucketCount === 1 ? 'objetivo de investimento' : 'objetivos de investimento'}{' '}
-            — retorno esperado {formatPercent(distributionSummary.expectedReturn * 100)} a.a.
-          </p>
+          {distributionSummary.flow.surplusToInvestments > 0 && (
+            <p className="mt-2 text-xs text-gray-600">
+              Investimentos inclui {formatCurrency(distributionSummary.flow.surplusToInvestments)} do saldo das
+              despesas essenciais.
+            </p>
+          )}
+          {distributionSummary.flow.surplusPending && (
+            <p className="mt-2 text-xs text-amber-800">
+              Você tem {formatCurrency(distributionSummary.flow.surplus)} de saldo nas essenciais sem destino.{' '}
+              <Link to="/distribution" className="font-medium underline">
+                Decidir agora
+              </Link>
+            </p>
+          )}
           <Link to="/distribution" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
             Editar distribuição
           </Link>

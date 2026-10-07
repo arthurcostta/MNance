@@ -35,11 +35,11 @@ const MODEL_DESCRIPTIONS: Record<AllocationModelKey, string> = {
 
 const OSCILLATION_LABELS = { low: 'Oscilação baixa', medium: 'Oscilação média', high: 'Oscilação alta' }
 
-// Componente 100% controlado no M5.5 (sem estado interno, sem botão salvar próprio) —
-// InvestmentBucketsForm.tsx decide quando persistir, já que agora cada objetivo de
-// investimento tem seu próprio modelo em vez de um único modelo global (M5).
+// Componente 100% controlado (sem estado interno, sem botão salvar próprio) — quem o usa
+// decide quando persistir. Sem uso desde que o Nível 2 saiu da tela de Distribuição (M5.8);
+// volta na tela Investimentos (M5.9) como sugestão de estratégia.
 // IDs dos inputs de "Personalizado" vêm de FormField/useId(), já únicos por instância —
-// não precisa de um idPrefix manual mesmo renderizado várias vezes na lista de objetivos.
+// não precisa de um idPrefix manual mesmo renderizado mais de uma vez.
 export default function AllocationModelPicker({
   value,
   customValue,

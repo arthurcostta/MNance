@@ -1,7 +1,6 @@
 import type { OnboardingData } from '../../../hooks/useOnboarding'
 import type { EmergencyReserveResult } from '../../../core/emergencyReserve'
 import type { Distribution, PaydaySplit } from '../../../types/distribution'
-import { ALLOCATION_MODELS } from '../../../core/allocationModels'
 import Card from '../../Common/Card'
 
 interface Step5ReviewProps {
@@ -77,21 +76,6 @@ export default function Step5Review({ data, emergencyReserve, defaultDistributio
             <PaydaySplitRows split={defaultDistribution.payday2Split} />
           </div>
         )}
-
-        <div className="mt-3">
-          <p className="text-xs font-medium text-gray-600">Objetivos de investimento</p>
-          {defaultDistribution.investmentBuckets.map((bucket) => (
-            <Row
-              key={bucket.id}
-              label={bucket.name}
-              value={`${bucket.percentOfInvestments}% · ${
-                bucket.allocationModel === 'CUSTOM'
-                  ? 'Personalizado'
-                  : ALLOCATION_MODELS[bucket.allocationModel].label
-              }`}
-            />
-          ))}
-        </div>
 
         <p className="mt-3 text-gray-600">
           Começamos com <strong>55% essenciais, 10% educação, 10% lazer e 25% investimentos</strong> —

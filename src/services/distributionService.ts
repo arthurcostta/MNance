@@ -1,15 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from './firebase'
 import type { Distribution, PaydaySplit } from '../types/distribution'
-import type { RiskProfile } from '../types/user'
-import { type AllocationModelKey } from '../core/allocationModels'
-import { generateId } from '../utils/generateId'
-
-const RISK_PROFILE_TO_MODEL: Record<RiskProfile, AllocationModelKey> = {
-  conservative: 'CONSERVATIVE',
-  moderate: 'ALL_WEATHER',
-  aggressive: 'AGGRESSIVE',
-}
 
 // Default de cada dia de pagamento: 55/10/10/25 (essenciais/educação/lazer/investimentos),
 // fiel ao PRD §5, com companyCashPercent: 0 — decisão M5.5 corrigida em sessão: a 5ª
@@ -24,25 +15,15 @@ const DEFAULT_PAYDAY_SPLIT: PaydaySplit = {
   companyCashPercent: 0,
 }
 
-// Nível 1 + Nível 2 default. `hasSecondPayday` reflete User.payday2 — quando existe,
-// popula um 2º PaydaySplit (mesmo default) e um split de renda 50/50 entre os dois dias.
-export function getDefaultDistribution(
-  riskProfile: RiskProfile,
-  hasSecondPayday: boolean
-): Omit<Distribution, 'updatedAt'> {
+// `hasSecondPayday` reflete User.payday2 — quando existe, popula um 2º PaydaySplit (mesmo
+// default) e um split de renda 50/50 entre os dois dias. O destino do saldo das essenciais
+// (surplusInvestmentsPercent) nasce ausente de propósito: "decisão pendente".
+export function getDefaultDistribution(hasSecondPayday: boolean): Omit<Distribution, 'updatedAt'> {
   return {
     payday1Split: { ...DEFAULT_PAYDAY_SPLIT },
     ...(hasSecondPayday
       ? { payday2Split: { ...DEFAULT_PAYDAY_SPLIT }, payday1IncomeSharePercent: 50 }
       : {}),
-    investmentBuckets: [
-      {
-        id: generateId(),
-        name: 'Meus Investimentos',
-        percentOfInvestments: 100,
-        allocationModel: RISK_PROFILE_TO_MODEL[riskProfile],
-      },
-    ],
   }
 }
 
@@ -65,8 +46,8 @@ export async function setDistribution(
   })
 }
 
-// Usado pela tela de Distribuição, que salva Nível 1 e Nível 2 em ações separadas —
-// merge (updateDoc), nunca overwrite, para não apagar os campos do outro nível.
+// Merge (updateDoc), nunca overwrite: a tela de Distribuição salva o split da renda e a
+// regra do saldo em ações separadas, e uma não pode apagar o campo da outra.
 export async function updateDistribution(
   uid: string,
   data: Partial<Omit<Distribution, 'updatedAt'>>
@@ -79,22 +60,18 @@ export async function updateDistribution(
 
 // Usado pelo Onboarding ao salvar. Reeditar o onboarding NÃO pode jogar fora uma
 // Distribuição já personalizada (achado do QA de 07/10/2026: "Atualizar" trocava os
-// objetivos e percentuais do usuário pelo default). Só cria quando não existe; se o 2º
-// pagamento foi adicionado depois, acrescenta apenas o split dele. Se foi removido, o
-// payday2Split fica órfão e inofensivo — useDistribution deriva hasSecondPayday do User.
-export async function ensureDistribution(
-  uid: string,
-  riskProfile: RiskProfile,
-  hasSecondPayday: boolean
-): Promise<void> {
+// percentuais do usuário pelo default). Só cria quando não existe; se o 2º pagamento foi
+// adicionado depois, acrescenta apenas o split dele. Se foi removido, o payday2Split fica
+// órfão e inofensivo — useDistribution deriva hasSecondPayday do User.
+export async function ensureDistribution(uid: string, hasSecondPayday: boolean): Promise<void> {
   const existing = await getDistribution(uid)
   if (!existing) {
-    await setDistribution(uid, getDefaultDistribution(riskProfile, hasSecondPayday))
+    await setDistribution(uid, getDefaultDistribution(hasSecondPayday))
     return
   }
 
   if (hasSecondPayday && existing.payday1Split && !existing.payday2Split) {
-    const { payday2Split, payday1IncomeSharePercent } = getDefaultDistribution(riskProfile, true)
+    const { payday2Split, payday1IncomeSharePercent } = getDefaultDistribution(true)
     if (payday2Split && payday1IncomeSharePercent !== undefined) {
       await updateDistribution(uid, { payday2Split, payday1IncomeSharePercent })
     }

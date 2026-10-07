@@ -1501,6 +1501,13 @@ quebrar a tela.
 
 ## 14. Distribuição — Nível 2 por objetivos de investimento (M5.5/M5.6)
 
+> **⏸ Seção SUPERADA no M5.8 (Fase 1) — os cenários 91 a 103 não são executáveis hoje.** O Nível 2
+> (objetivos de investimento) saiu da tela de Distribuição: em que investir é assunto do Portfólio e da
+> futura tela Investimentos (M5.9), onde o seletor de estratégias (`AllocationModelPicker`) volta como
+> sugestão — e estes cenários serão adaptados lá. Vale também para qualquer outro cenário do documento que
+> peça "objetivos de investimento", "Salvar objetivos de investimento" ou "retorno esperado" na
+> Distribuição; e o botão "Salvar Nível 1" agora se chama **"Salvar divisão da renda"**.
+
 ### CENÁRIO 91: Vários objetivos somando 100% `[M5.5]`
 
 **Categoria:** Caminho feliz
@@ -1980,7 +1987,8 @@ patrimônio informado no onboarding), ou pede o cadastro dos ativos antes de mos
 ### CENÁRIO 118: Retorno esperado dos modelos respeita a relação risco × retorno `[regressão]`
 
 **Categoria:** Edge case
-**Pré-condições:** Tela de Distribuição, Nível 2.
+**Pré-condições:** Cards de estratégia (All Weather / Conservador / Agressivo). ⏸ Sem tela desde o M5.8 Fase 1
+(saíram da Distribuição); voltam na tela Investimentos (M5.9) — o cenário vale a partir de lá.
 **Passos:**
 1. Ler o "Retorno esperado" dos cards All Weather, Conservador e Agressivo.
 
@@ -2015,9 +2023,142 @@ e 3 testes de `inflation.test.ts` com valores esperados incorretos — o deploy 
 
 ---
 
+## 18. Distribuição enxuta e destino do saldo (M5.8 · Fase 1)
+
+Persona de referência: renda R$ 5.781 em 2 pagamentos, split padrão 55/10/10/25. Orçado de essenciais
+R$ 3.179,55; lista detalhada de 11 itens somando R$ 1.746,00 ⇒ **saldo R$ 1.433,55**; fatia de
+Investimentos R$ 1.445,25; Lazer R$ 578,10.
+
+### CENÁRIO 121: Nível 2 saiu e a tela segue o fluxo do dinheiro `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Conta com onboarding concluído. Pode ser uma conta antiga, cujo documento de Distribuição
+ainda tem o campo `investmentBuckets`.
+**Passos:**
+1. Abrir `/distribution` e ler os títulos de cima para baixo.
+
+**Resultado esperado:** Ordem: Divisão da renda → Despesas essenciais detalhadas → Destino do saldo das
+essenciais → Reserva de emergência → "Seu aporte mensal planejado". Não existe "Nível 1", "Nível 2",
+"Objetivos de investimento" nem "Retorno esperado". O campo antigo `investmentBuckets` no Firestore é
+ignorado, sem erro.
+
+---
+
+### CENÁRIO 122: Saldo sem decisão fica pendente e não entra em nenhum cálculo `[M5.8]`
+
+**Categoria:** Edge case
+**Pré-condições:** Persona acima; nenhuma regra do saldo salva.
+**Passos:**
+1. Abrir `/distribution` e olhar o card "Destino do saldo".
+2. Tentar clicar em "Salvar destino do saldo" sem escolher nada.
+3. Ler o card "Seu aporte mensal planejado".
+
+**Resultado esperado:** Card com chip "Decisão pendente" e o texto "Sobraram R$ 1.433,55…"; o botão de salvar
+fica desabilitado até uma opção ser escolhida; o aporte planejado é só a fatia (R$ 1.445,25), com o aviso
+"R$ 1.433,55 de saldo sem destino".
+
+---
+
+### CENÁRIO 123: "Investir tudo" persiste e chega ao aporte e ao Radar `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Passos:**
+1. Escolher "Investir tudo" e conferir a prévia "Investimentos: R$ 1.445,25 → R$ 2.878,80/mês".
+2. Salvar, recarregar a página.
+3. Abrir o Radar e olhar o card "Distribuição Ativa".
+
+**Resultado esperado:** Resumo "Regra atual: Investir tudo" com o selo "Vale todo mês até você editar", que
+sobrevive ao recarregar; aporte planejado R$ 2.878,80; no Radar, "Investimentos R$ 2.878,80" com a nota
+"inclui R$ 1.433,55 do saldo das despesas essenciais".
+
+---
+
+### CENÁRIO 124: Radar mostra o valor efetivo e convida a decidir quando há saldo pendente `[M5.8]`
+
+**Categoria:** Interação
+**Passos:**
+1. Com a regra pendente, abrir o Radar. 2. Salvar uma regra e abrir o Radar de novo.
+
+**Resultado esperado:** Pendente: aviso "Você tem R$ 1.433,55 de saldo nas essenciais sem destino" com o link
+"Decidir agora". Com regra: Investimentos e Lazer efetivos (já com o saldo roteado). **Atenção:** o tempo
+até a meta do Radar ainda NÃO usa esse aporte — isso é a Fase 3.
+
+---
+
+### CENÁRIO 125: Dividir (atalhos e controle) e "Editar regra" `[M5.8]`
+
+**Categoria:** Interação
+**Passos:**
+1. Com uma regra salva, clicar em "Editar regra" → "Dividir" → atalho "70/30".
+2. Conferir o texto do controle e a prévia, salvar.
+
+**Resultado esperado:** "Investir 70% · Lazer 30%"; prévia de Lazer "R$ 578,10 → R$ 1.008,17/mês"; depois de
+salvar, "Regra atual: 70% investir · 30% lazer", "Neste mês: R$ 1.003,49 para investimentos e R$ 430,06 para
+lazer" (a soma fecha **exatamente** R$ 1.433,55) e aporte planejado R$ 2.448,74.
+
+---
+
+### CENÁRIO 126: "Cancelar" mantém a regra anterior `[M5.8]`
+
+**Categoria:** Edge case
+**Passos:**
+1. "Editar regra" → escolher "Usar em lazer" → **Cancelar**.
+
+**Resultado esperado:** Volta ao resumo da regra anterior, sem gravar nada; aporte planejado inalterado.
+
+---
+
+### CENÁRIO 127: "Usar em lazer" (0%) `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Passos:**
+1. Editar a regra para "Usar em lazer" e salvar.
+
+**Resultado esperado:** "Regra atual: Usar tudo em lazer"; aporte planejado volta a R$ 1.445,25 (só a fatia);
+Lazer efetivo R$ 2.011,65.
+
+---
+
+### CENÁRIO 128: Despesa estoura o orçado — nada é roteado, a regra continua editável `[M5.8]`
+
+**Categoria:** Caminho de erro
+**Passos:**
+1. Adicionar uma despesa essencial de R$ 2.000 (real passa a R$ 3.746). 2. Excluir essa despesa.
+
+**Resultado esperado:** Aviso "Suas despesas essenciais reais passam do orçado em R$ 566,45…"; o resumo da
+regra salva e o botão "Editar regra" continuam visíveis; aporte planejado = só a fatia. Ao excluir a despesa,
+o saldo e o roteamento voltam.
+
+---
+
+### CENÁRIO 129: Layout em 1280px `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Passos:**
+1. Abrir `/distribution` numa janela de 1280px.
+
+**Resultado esperado:** Mesma ordem e conteúdo do mobile, centralizados (coluna de até ~672px ao lado da
+sidebar), sem rolagem horizontal.
+
+---
+
+### CENÁRIO 130: Conta nova — onboarding sem objetivos e sem lista de essenciais `[M5.8]`
+
+**Categoria:** Edge case
+**Pré-condições:** Cadastro novo; renda R$ 4.000, custo essencial R$ 1.800, 1 pagamento.
+**Passos:**
+1. Concluir o onboarding e ler a revisão. 2. Abrir `/distribution`.
+
+**Resultado esperado:** A revisão mostra a divisão 55/10/10/25 e **não** lista "Objetivos de investimento". Na
+Distribuição, sem despesas cadastradas: dica "Cadastre suas despesas essenciais acima…", **sem** chip "Decisão
+pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de R$ 4.000).
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
 |------|-----------|---------------------|--------|-------------|
 | 07/10/2026 | M5.6 + M5.7 parcial (não commitado) | Jornada completa no navegador automatizado (mobile 390px + desktop 1280px): cadastro (senha fraca), onboarding (validações de nome, meta, custo > renda, dias iguais), seed + 3 ativos, Distribuição (salário por pagamento, 11 despesas, 2 objetivos, soma ≠ 100%, persistência), Radar, re-login. Inclui 31, 37, 104 (inclusão), 110 (parcial) e 113–120 | 113–120 | Passaram: validações do onboarding e do cadastro, retorno ponderado do Portfólio (11,17%), sincronização R$ ↔ % (50%), saldo de essenciais (R$ 1.433,55), persistência após reload, bloqueio de soma ≠ 100%, Radar bate o cálculo manual da fórmula atual (22a 8m). Conta de teste criada: `qa.rafael.*@mnance-teste.dev`. |
-| 07/10/2026 | M5.8 Fase 0 (correções, ainda não commitada) | 113, 114, 115, 120 + 06/71/72 atualizados + navegação enxuta + vírgula decimal, no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` | 0 | **113:** login → `/` (rotas vistas: `/login`, `/`), sem passar por `/onboarding`. **114:** "Aposentadoria 40%" e "Casa + Carro 2031 60%" intactos após "Atualizar" no onboarding. **115:** "Sair" na tela Conta (mobile) e na sidebar (desktop) leva a `/login`; abrir `/` sem sessão volta a `/login`. **120:** `tsc` 0 erros, 181 testes verdes (17 arquivos), `oxlint` exit 0 (só warnings antigos), `npm run build` exit 0. Rotas removidas (`/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`, `/more`) redirecionam para `/`. Percentuais em pt-BR ("12,1% a.a."). **Ainda abertos (de propósito, Fases 1–3):** 116, 117, 118, 119 — o Radar continua em 22 anos e 8 meses porque a projeção realista ainda não foi construída. |
+| 07/10/2026 | M5.8 Fase 0 (correções, commit `2fde3e1`) | 113, 114, 115, 120 + 06/71/72 atualizados + navegação enxuta + vírgula decimal, no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` | 0 | **113:** login → `/` (rotas vistas: `/login`, `/`), sem passar por `/onboarding`. **114:** "Aposentadoria 40%" e "Casa + Carro 2031 60%" intactos após "Atualizar" no onboarding. **115:** "Sair" na tela Conta (mobile) e na sidebar (desktop) leva a `/login`; abrir `/` sem sessão volta a `/login`. **120:** `tsc` 0 erros, 181 testes verdes (17 arquivos), `oxlint` exit 0 (só warnings antigos), `npm run build` exit 0. Rotas removidas (`/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`, `/more`) redirecionam para `/`. Percentuais em pt-BR ("12,1% a.a."). **Ainda abertos (de propósito, Fases 1–3):** 116, 117, 118, 119 — o Radar continua em 22 anos e 8 meses porque a projeção realista ainda não foi construída. |
+| 07/10/2026 | M5.8 Fase 1 (Distribuição enxuta + destino do saldo, não commitada) | 121–130 no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` (documento antigo, ainda com `investmentBuckets`) e uma conta nova | 0 | Passaram todos: Nível 2 e "Retorno esperado" sumiram; estado pendente com botão desabilitado; "Investir tudo" → R$ 2.878,80, persistido após recarregar e refletido no Radar; Dividir 70/30 → R$ 1.003,49 + R$ 430,06 (soma exata) e aporte R$ 2.448,74; Cancelar preserva a regra; "Usar em lazer" → R$ 1.445,25; despesa de R$ 2.000 → aviso de estouro de R$ 566,45 sem roteamento; conta nova sem lista → dica, sem "Decisão pendente", aporte R$ 1.000,00. `tsc` 0 erros, 186 testes (17 arquivos), `oxlint` exit 0. Seção 14 (cenários 91–103, Nível 2) marcada como superada. **Ainda abertos:** 116–119 (Fases 2–3). Segunda conta de teste criada: `qa.sem-lista.*@mnance-teste.dev`. |

@@ -1,22 +1,23 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useDistribution } from '../hooks/useDistribution'
-import type { PaydaySplit, InvestmentBucket } from '../types/distribution'
+import type { PaydaySplit } from '../types/distribution'
 import NivelUmForm from '../components/Distribution/NivelUmForm'
-import InvestmentBucketsForm from '../components/Distribution/InvestmentBucketsForm'
 import EmergencyReserveCard from '../components/Distribution/EmergencyReserveCard'
 import EssentialExpensesSection from '../components/Distribution/EssentialExpensesSection'
+import SurplusDestinationCard from '../components/Distribution/SurplusDestinationCard'
+import PlannedContributionCard from '../components/Distribution/PlannedContributionCard'
 import Card from '../components/Common/Card'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
-import { formatPercent } from '../utils/formatPercent'
 
+// A ordem da tela segue o fluxo do dinheiro: como a renda se divide → o que sobra das
+// essenciais → para onde esse saldo vai → o aporte mensal planejado que resulta disso.
 export default function Distribution() {
   const { user, currentUser } = useAuth()
   const distribution = useDistribution(user?.uid)
 
   const [savingNivelUm, setSavingNivelUm] = useState(false)
-  const [savingBuckets, setSavingBuckets] = useState(false)
 
   if (distribution.loading || !currentUser) {
     return <LoadingState label="Carregando distribuição..." />
@@ -32,24 +33,13 @@ export default function Distribution() {
     try {
       await distribution.saveNivelUm(payload)
     } catch (error) {
-      console.error('Erro ao salvar Nível 1:', error)
+      console.error('Erro ao salvar a divisão da renda:', error)
     } finally {
       setSavingNivelUm(false)
     }
   }
 
-  const handleSaveBuckets = async (buckets: InvestmentBucket[]) => {
-    setSavingBuckets(true)
-    try {
-      await distribution.saveInvestmentBuckets(buckets)
-    } catch (error) {
-      console.error('Erro ao salvar objetivos de investimento:', error)
-    } finally {
-      setSavingBuckets(false)
-    }
-  }
-
-  const { goalCheck, blendedExpectedReturn } = distribution
+  const { flow, amounts } = distribution
 
   return (
     <div className="mx-auto max-w-2xl p-4">
@@ -67,34 +57,31 @@ export default function Distribution() {
         />
       </Card>
 
-      <Card className="mb-6">
-        <InvestmentBucketsForm
-          initialBuckets={distribution.investmentBuckets}
-          monthlyInvestment={distribution.amounts.investments}
-          onSave={handleSaveBuckets}
-          isSaving={savingBuckets}
+      <div className="mb-6">
+        <EssentialExpensesSection
+          expenses={distribution.essentialExpenses}
+          essentialsBudget={amounts.essentials}
         />
-      </Card>
+      </div>
+
+      <div className="mb-6">
+        <SurplusDestinationCard
+          flow={flow}
+          savedPercent={distribution.surplusInvestmentsPercent}
+          hasEssentialsList={distribution.hasEssentialsList}
+          baseInvestments={amounts.investments}
+          baseLeisure={amounts.leisure}
+          onSave={distribution.saveSurplusRule}
+        />
+      </div>
 
       <div className="mb-6">
         <EmergencyReserveCard reserve={distribution.emergencyReserve} />
       </div>
 
       <div className="mb-6">
-        <EssentialExpensesSection uid={user?.uid} essentialsBudget={distribution.amounts.essentials} />
+        <PlannedContributionCard flow={flow} baseInvestments={amounts.investments} />
       </div>
-
-      {goalCheck && (
-        <Card className="mb-6 text-sm">
-          Retorno esperado: <span className="font-medium">{formatPercent(blendedExpectedReturn * 100)} a.a.</span>
-          {' — '}
-          {goalCheck.reachable ? (
-            <span className="font-medium text-green-700">bate sua meta ✅</span>
-          ) : (
-            <span className="font-medium text-amber-700">não bate sua meta dentro de {goalCheck.capYears} anos</span>
-          )}
-        </Card>
-      )}
 
       {distribution.actionError && (
         <div className="mt-4">

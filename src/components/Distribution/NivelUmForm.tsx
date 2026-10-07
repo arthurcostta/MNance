@@ -113,7 +113,7 @@ export default function NivelUmForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-lg font-semibold">Nível 1 — Divisão da renda</h2>
+      <h2 className="text-lg font-semibold">Divisão da renda</h2>
 
       {/* M5.6: Campo em R$ por pagamento */}
       <FormField
@@ -199,7 +199,7 @@ export default function NivelUmForm({
       )}
 
       <Button type="submit" disabled={isSaving}>
-        {isSaving ? 'Salvando...' : 'Salvar Nível 1'}
+        {isSaving ? 'Salvando...' : 'Salvar divisão da renda'}
       </Button>
     </form>
   )

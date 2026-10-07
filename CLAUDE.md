@@ -390,7 +390,42 @@ Origem: pente fino de QA em navegador automatizado (persona "Rafael"), registrad
 - `npm test`: **181 testes, 17 arquivos**; `tsc -b`, `oxlint` (só warnings antigos de
   `set-state-in-effect`) e `npm run build` sem erro. Verificado no navegador: cenários 113, 114, 115.
 
-**Próximo:** M5.8 Fases 1–3 (Distribuição sem Nível 2 + destino do saldo; aporte programado por
-ativo + catálogo corrigido; motor de projeção realista no Radar), depois M5.9 (tela Investimentos
-com check-in mensal) e M5.10 (push gratuito via FCM + GitHub Actions). M6 — Simulador de Cenários
-(Feature #3) só depois.
+**M5.8 · Fase 1 — Distribuição enxuta + destino do saldo das essenciais: concluída (sem commit).**
+- **Nível 2 saiu da tela** — em que investir é assunto do Portfólio e da futura tela Investimentos
+  (M5.9). `Distribution` perdeu `investmentBuckets` (documentos antigos mantêm o campo, que é
+  ignorado) e ganhou **`surplusInvestmentsPercent?: number`** (0–100; o resto vai para Lazer;
+  **`undefined` = decisão pendente**, nada é roteado). Removidos `InvestmentBucket`, `validateInvestmentBuckets`,
+  `calculateBlendedExpectedReturn`, `saveInvestmentBuckets`, `InvestmentBucketsForm.tsx` e o cartão
+  "Retorno esperado / bate sua meta" (dependia dos objetivos; **volta na Fase 3**, calculado pelo
+  mesmo motor do Radar). `getDefaultDistribution(hasSecondPayday)` e `ensureDistribution(uid,
+  hasSecondPayday)` perderam o parâmetro `riskProfile`. `resolveStoredDistribution` ficou simples:
+  tem `payday1Split` → usa; senão → default (**não converte mais o formato M5 "flat"**).
+  Textos visíveis: "Nível 1 — Divisão da renda" → "Divisão da renda"; "Salvar Nível 1" → "Salvar
+  divisão da renda".
+- **Regra do saldo = política permanente, editável** — função pura `calculateMonthlyFlow({ amounts,
+  essentialsReal, hasEssentialsList, surplusInvestmentsPercent })` em `hooks/useDistribution.ts` →
+  `{ balance, surplus, deficit, surplusPending, surplusToInvestments, surplusToLeisure, investmentsPlan,
+  leisureTotal }`. **`investmentsPlan` (fatia de Investimentos + saldo roteado) é o aporte mensal
+  planejado — fonte única para o Radar (Fase 3), a tela Investimentos e o lembrete.** Sem lista de
+  essenciais não há saldo (senão "real = 0" faria o orçamento inteiro virar saldo); saldo negativo não
+  roteia nada; o saldo é arredondado a centavos (resíduo de ponto flutuante não vira "saldo").
+- `useDistribution` agora **compõe `useEssentialExpenses`** (instância única, passada por props a
+  `EssentialExpensesSection`; tipo `EssentialExpensesState`) e expõe `flow`, `essentialExpenses`,
+  `hasEssentialsList`, `surplusInvestmentsPercent` e `saveSurplusRule`.
+- Novos componentes: `SurplusDestinationCard` (modo escolha — "Investir tudo / Usar em lazer /
+  Dividir" com atalhos 70/30·50/50·30/70, controle e prévia "antes → depois" — e modo resumo com
+  **"Editar regra"** + Cancelar, sempre disponível depois de salva; estados: pendente, sem lista, sem
+  saldo, saldo negativo) e `PlannedContributionCard`. Ordem da tela: divisão da renda → despesas
+  essenciais → destino do saldo → reserva de emergência → aporte planejado.
+- Radar: card "Distribuição Ativa" mostra Investimentos/Lazer **efetivos**, a nota do saldo roteado e,
+  se pendente, o link "Decidir agora". **O tempo até a meta do Radar continua usando o aporte proxy
+  `renda − custo essencial` — só muda na Fase 3.**
+- `AllocationModelPicker`, `AllocationBar`, `AssetClassGlossary` e `validateCustomAllocation` /
+  `resolveAllocationModel` **ficam sem uso** até a tela Investimentos (M5.9).
+- `npm test`: **186 testes, 17 arquivos** (`useDistribution.test.ts` reescrito: sai bucket/blended, entram
+  `calculateMonthlyFlow` e `validateSurplusPercent`); `tsc -b`, `oxlint` e build sem erro. Verificado no
+  navegador: cenários 121–130 (`cenarios-de-teste.md` §18; a §14 do Nível 2 está marcada como superada).
+
+**Próximo:** M5.8 Fases 2–3 (aporte programado por ativo + catálogo de retornos corrigido; motor de
+projeção realista no Radar), depois M5.9 (tela Investimentos com check-in mensal) e M5.10 (push gratuito
+via FCM + GitHub Actions). M6 — Simulador de Cenários (Feature #3) só depois.

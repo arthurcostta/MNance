@@ -113,3 +113,6 @@ export function useEssentialExpenses(uid: string | undefined) {
 
   return { items, total, loadingInitial, actionError, addItem, updateItem, deleteItem }
 }
+
+// useDistribution compõe este hook (uma instância só) e entrega o resultado à tela por props.
+export type EssentialExpensesState = ReturnType<typeof useEssentialExpenses>

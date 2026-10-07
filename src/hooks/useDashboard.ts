@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
-import { useDistribution, type DistributionAmounts } from './useDistribution'
+import { useDistribution, type DistributionAmounts, type MonthlyFlow } from './useDistribution'
 import { calculateGoalTimeline, type GoalTimelineResult } from '../core/goalTimeline'
 import { calculateProjection } from '../core/projection'
 import { annualToMonthlyRate } from '../core/compoundInterest'
@@ -79,9 +79,10 @@ export interface ProjectionPoint {
 }
 
 export interface DistributionSummary {
+  // Fatias do Nível 1, sem o saldo das essenciais.
   amounts: DistributionAmounts
-  bucketCount: number
-  expectedReturn: number
+  // Valores efetivos: investmentsPlan e leisureTotal já incluem o saldo roteado pela regra.
+  flow: MonthlyFlow
 }
 
 export function useDashboard() {
@@ -136,11 +137,7 @@ export function useDashboard() {
 
   const distributionSummary = useMemo<DistributionSummary | null>(() => {
     if (!currentUser || distribution.loading) return null
-    return {
-      amounts: distribution.amounts,
-      bucketCount: distribution.investmentBuckets.length,
-      expectedReturn: distribution.blendedExpectedReturn,
-    }
+    return { amounts: distribution.amounts, flow: distribution.flow }
   }, [currentUser, distribution])
 
   return {
