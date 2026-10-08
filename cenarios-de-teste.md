@@ -2155,6 +2155,60 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 19. Radar — projeção realista e auditável `[M5.8 Fase 3b]`
+
+### CENÁRIO 131: Card, alerta e gráfico contam a mesma história `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Pré-condições:** Conta com ativos e meta que não fecha no prazo (persona: R$ 41.291, aporte R$ 1.445,25, meta R$ 5 mi em 25 anos, inflação 4,5%).
+**Passos:**
+1. Abrir `/` e ler o card "Tempo até a Meta", o alerta amarelo, o bloco "No seu prazo" e o gráfico.
+
+**Resultado esperado:** O card mostra o **tempo até a meta** (~45 anos e 4 meses — nunca a diferença para o prazo), com "Seu prazo: 25 anos · fora do prazo" e "Otimista/Conservador". O alerta repete o mesmo número. O gráfico cruza a linha da meta no ano do card e marca o prazo (linha vertical no ano 25).
+
+### CENÁRIO 132: Análise de lacuna `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Passos:** Ler o bloco "No seu prazo (N anos)".
+
+**Resultado esperado:** Mostra o patrimônio projetado no prazo e o % da meta (persona: ≈ R$ 1,2 mi, ≈ 24%) e o **aporte mensal necessário** (base e conservador), maior que o aporte atual. Com meta atingível no prazo, não pede aporte maior. Em meta impossível nesse prazo, sugere revisar prazo/meta.
+
+### CENÁRIO 133: Alavancas com números do motor `[M5.8]`
+
+**Categoria:** Caminho feliz
+**Passos:** Ler o bloco "O que mais acelera sua meta".
+
+**Resultado esperado:** "+20% de aporte" e "aporte crescendo 3% a.a. acima da inflação" mostram o tempo novo **versus** o tempo base (ex.: 42a11m e 39a11m em vez de 45a4m) — nenhum valor fixo/inventado. Sem aporte (R$ 0) ou meta já atingida, o bloco não aparece.
+
+### CENÁRIO 134: Inflação editável sem recarregar `[M5.8]`
+
+**Categoria:** Caminho feliz / regressão
+**Passos:** 1. No painel "Como esta projeção é calculada", **Editar** inflação. 2. Digitar `0` e **Salvar**. 3. Editar de novo, digitar `4,5` (e também `4.5`) e **Salvar**. 4. Recarregar (F5).
+
+**Resultado esperado:** O Radar muda **na hora** (0% → ~30a7m; 4,5% → ~45a4m), sem F5. O campo aceita vírgula e ponto (4,5 não vira 5). Valor fora de 0–30 ou vazio mostra erro e não salva. Persiste após F5.
+
+### CENÁRIO 135: Percentuais do painel corretos `[M5.8]`
+
+**Categoria:** Regressão
+**Passos:** Ler "Retorno esperado" e "Inflação esperada".
+
+**Resultado esperado:** "11,2% a.a. nominal … 6,4% a.a. real" e "4,5% a.a." — nunca "0,1%" ou "0,0%".
+
+### CENÁRIO 136: Teto de longo prazo por ativo `[M5.8]`
+
+**Categoria:** Edge case
+**Passos:** 1. No Portfólio, cadastrar R$ 2.000 em Bitcoin (45%). 2. Voltar ao Radar.
+
+**Resultado esperado:** O painel lista "Bitcoin: informado 45,0% → usado 14,0% (teto de longo prazo)". O tempo até a meta **não despenca** (sem o teto, R$ 2.000 a 45% fariam uma meta de R$ 20 mi "caber" em ~28 anos). No Portfólio a taxa continua 45%.
+
+### CENÁRIO 137: Conta sem ativos usa a estratégia `[M5.8]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta nova sem ativos (`qa.sem-lista.*`).
+**Resultado esperado:** Aviso de estimativa, "Patrimônio Atual (estimado)", e o painel mostra a taxa da **estratégia do perfil** (ex.: 8,7% nominal / 4,0% real) — não 0,0%. O patrimônio estimado rende a essa taxa. O gráfico renderiza (conferir pelo `<canvas>`, não por `fullPage`).
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
@@ -2162,3 +2216,4 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 | 07/10/2026 | M5.6 + M5.7 parcial (não commitado) | Jornada completa no navegador automatizado (mobile 390px + desktop 1280px): cadastro (senha fraca), onboarding (validações de nome, meta, custo > renda, dias iguais), seed + 3 ativos, Distribuição (salário por pagamento, 11 despesas, 2 objetivos, soma ≠ 100%, persistência), Radar, re-login. Inclui 31, 37, 104 (inclusão), 110 (parcial) e 113–120 | 113–120 | Passaram: validações do onboarding e do cadastro, retorno ponderado do Portfólio (11,17%), sincronização R$ ↔ % (50%), saldo de essenciais (R$ 1.433,55), persistência após reload, bloqueio de soma ≠ 100%, Radar bate o cálculo manual da fórmula atual (22a 8m). Conta de teste criada: `qa.rafael.*@mnance-teste.dev`. |
 | 07/10/2026 | M5.8 Fase 0 (correções, commit `2fde3e1`) | 113, 114, 115, 120 + 06/71/72 atualizados + navegação enxuta + vírgula decimal, no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` | 0 | **113:** login → `/` (rotas vistas: `/login`, `/`), sem passar por `/onboarding`. **114:** "Aposentadoria 40%" e "Casa + Carro 2031 60%" intactos após "Atualizar" no onboarding. **115:** "Sair" na tela Conta (mobile) e na sidebar (desktop) leva a `/login`; abrir `/` sem sessão volta a `/login`. **120:** `tsc` 0 erros, 181 testes verdes (17 arquivos), `oxlint` exit 0 (só warnings antigos), `npm run build` exit 0. Rotas removidas (`/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`, `/more`) redirecionam para `/`. Percentuais em pt-BR ("12,1% a.a."). **Ainda abertos (de propósito, Fases 1–3):** 116, 117, 118, 119 — o Radar continua em 22 anos e 8 meses porque a projeção realista ainda não foi construída. |
 | 07/10/2026 | M5.8 Fase 1 (Distribuição enxuta + destino do saldo, não commitada) | 121–130 no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` (documento antigo, ainda com `investmentBuckets`) e uma conta nova | 0 | Passaram todos: Nível 2 e "Retorno esperado" sumiram; estado pendente com botão desabilitado; "Investir tudo" → R$ 2.878,80, persistido após recarregar e refletido no Radar; Dividir 70/30 → R$ 1.003,49 + R$ 430,06 (soma exata) e aporte R$ 2.448,74; Cancelar preserva a regra; "Usar em lazer" → R$ 1.445,25; despesa de R$ 2.000 → aviso de estouro de R$ 566,45 sem roteamento; conta nova sem lista → dica, sem "Decisão pendente", aporte R$ 1.000,00. `tsc` 0 erros, 186 testes (17 arquivos), `oxlint` exit 0. Seção 14 (cenários 91–103, Nível 2) marcada como superada. **Ainda abertos:** 116–119 (Fases 2–3). Segunda conta de teste criada: `qa.sem-lista.*@mnance-teste.dev`. |
+| 07/10/2026 | M5.8 Fase 3b (Radar realista, não commitada) | 131–135, 137 + 116, 117 e 119 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael` e `qa.sem-lista` | 0 | Card, alerta, alavancas e gráfico coerentes (~45a4m; no prazo R$ 1,2 mi = 24,5% da meta; aporte necessário R$ 6.725/mês, conservador R$ 9.095); inflação 4,5% → 0% muda o Radar sem F5 (~30a7m) e `4.5` agora é aceito; painel sem "0,1%/0,0%"; conta sem ativos usa 8,7% nominal / 4,0% real. Bitcoin: coberto por teste unitário (`portfolioProjection.test.ts`), **não** executado no navegador. `tsc` 0 erros, 197 testes (17 arquivos), build ok. **Fecham:** 116, 117, 119. |

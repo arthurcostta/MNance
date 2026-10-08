@@ -1,59 +1,31 @@
-import { useMemo } from 'react'
 import { useAuth } from './useAuth'
 import { useDistribution } from './useDistribution'
-import { useProjection } from './useProjection'
+import { useProjection, type ProjectionAssumptionsData } from './useProjection'
+import type { ProjectionMetrics } from '../core/portfolioProjection'
 
-export interface DashboardMetrics {
-  velocity: number
+export interface DashboardData {
+  loading: boolean
   budgetAlert: boolean
-  meetsDeadline: boolean
-  deadlineGapYears: number | null
-  series: number[]
-  boostedSeries: number[] | null
-  showBoostInsight: boolean
+  metrics: ProjectionMetrics | null
+  assumptions: ProjectionAssumptionsData | null
+  inflationRate: number
+  distribution: ReturnType<typeof useDistribution>
 }
 
-export function useDashboard(): DashboardMetrics & { loading: boolean; inflationRate: number } {
-  const { currentUser } = useAuth()
-  const distribution = useDistribution(useAuth().user?.uid)
+export function useDashboard(): DashboardData {
+  const { user, currentUser } = useAuth()
+  const distribution = useDistribution(user?.uid)
 
-  // Aporte planejado = fatia de Investimentos + saldo roteado
-  const investmentsPlan = distribution.flow?.investmentsPlan ?? 0
-
-  // Usa o motor unificado de projeção
-  const projection = useProjection(investmentsPlan)
-
-  const metrics = useMemo(() => {
-    if (!projection.metrics) {
-      return {
-        velocity: 0,
-        budgetAlert: false,
-        meetsDeadline: false,
-        deadlineGapYears: null,
-        series: [],
-        boostedSeries: null,
-        showBoostInsight: false,
-      }
-    }
-
-    // Budget alert = custo essencial > renda (decisão do M4, inalterada)
-    const budgetAlert = (currentUser?.essentialMonthlyCost ?? 0) > (currentUser?.monthlyIncomeNet ?? 0)
-
-    return {
-      velocity: projection.metrics.velocity,
-      budgetAlert,
-      meetsDeadline: projection.metrics.meetsDeadline,
-      deadlineGapYears: projection.metrics.deadlineGapYears,
-      series: projection.metrics.series,
-      boostedSeries: projection.metrics.boostedSeries,
-      showBoostInsight: projection.metrics.showBoostInsight,
-    }
-  }, [projection.metrics, currentUser?.essentialMonthlyCost, currentUser?.monthlyIncomeNet])
+  // Aporte planejado = fatia de Investimentos + saldo das essenciais roteado pela regra do usuário.
+  const projection = useProjection(distribution.flow?.investmentsPlan ?? 0)
 
   return {
-    ...metrics,
-    loading: projection.loading || !currentUser,
+    loading: projection.loading || distribution.loading || !currentUser,
+    // Alerta de orçamento (decisão do M4, inalterada): custo essencial maior que a renda líquida.
+    budgetAlert: (currentUser?.essentialMonthlyCost ?? 0) > (currentUser?.monthlyIncomeNet ?? 0),
+    metrics: projection.metrics,
+    assumptions: projection.assumptions,
     inflationRate: projection.inflationRate,
+    distribution,
   }
 }
-

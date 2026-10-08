@@ -426,6 +426,34 @@ Origem: pente fino de QA em navegador automatizado (persona "Rafael"), registrad
   `calculateMonthlyFlow` e `validateSurplusPercent`); `tsc -b`, `oxlint` e build sem erro. Verificado no
   navegador: cenários 121–130 (`cenarios-de-teste.md` §18; a §14 do Nível 2 está marcada como superada).
 
-**Próximo:** M5.8 Fases 2–3 (aporte programado por ativo + catálogo de retornos corrigido; motor de
-projeção realista no Radar), depois M5.9 (tela Investimentos com check-in mensal) e M5.10 (push gratuito
-via FCM + GitHub Actions). M6 — Simulador de Cenários (Feature #3) só depois.
+**M5.8 · Fase 3 + 3b — Radar sobre os ativos reais + projeção realista e auditável: concluída (Fase 3 commitada
+em `b4d8faf`; a 3b ainda sem commit).** **Substitui a decisão #1 do M4** (aporte = renda − custo essencial): o aporte
+é `Distribuição.flow.investmentsPlan` (fatia de Investimentos + saldo roteado) e o patrimônio são os ativos reais.
+- **Onde vive o cálculo:** `core/portfolioProjection.ts` (TS puro, testado) — `blendRates`, `calculateProjectionMetrics`
+  e a bissecção do aporte necessário; `hooks/useProjection.ts` é só uma casca (busca ativos/usuário, devolve
+  `metrics` + `assumptions`); `useDashboard` também expõe a `distribution`. Tudo sai de `core/streamProjection.ts`
+  (gráfico, tempo até a meta, cenários e alavancas usam a **mesma simulação**, então não se contradizem).
+- **Premissas do modelo:** carteira = **uma taxa ponderada única** (rebalanceada), com **teto de longo prazo de 14% a.a.
+  nominal por ativo** (`MAX_LONG_RUN_NOMINAL_RATE`; pega Bitcoin 45% e taxas digitadas absurdas — o Portfólio continua
+  mostrando a taxa digitada, o painel lista "informado → usado"). Sem ativos: patrimônio do onboarding rende à taxa da
+  estratégia do perfil. Inflação `User.inflationRate ?? 4,5%` (editável no painel; 0% = nominal); tudo em **valores de hoje**.
+- **Cenários:** conservador **−2 p.p.** / base / otimista **+1 p.p.** no retorno real (`SCENARIO_REAL_RATE_SHIFT`). O −2 p.p.
+  cobre, de forma aproximada, IR (~1 p.p.) + arrasto de volatilidade (~1 p.p.) — **retornos continuam brutos por decisão do
+  usuário** (sem IR). Horizonte de **60 anos** (`PROJECTION_HORIZON_YEARS`; acima disso a tela diz "mais de 60 anos").
+- **Regras do gráfico:** eixo X até `clamp(ceil(max(prazo × 1,5, anos_base × 1,15)), 10, 60)`; eixo Y limitado a
+  `max(meta × 1,25, curva base no fim)`; curva base em destaque + faixa conservador–otimista; linha horizontal da meta;
+  **linha vertical do prazo** (plugin inline, sem dependência nova); marcadores "No seu prazo" e "Meta atingida".
+- **Análise de lacuna** (o que o Radar passou a dizer): patrimônio **no prazo** e % da meta, **aporte mensal necessário**
+  para fechar a meta no prazo (base e conservador) e alavancas calculadas pelo motor ("+20% de aporte" e "aporte crescendo
+  3% a.a. acima da inflação" — `annualGrowth` em `PatrimonyStream`).
+- **Bugs corrigidos:** card "Tempo até a Meta" mostrava a *diferença para o prazo*; insight "+20%" usava números inventados
+  (`series.length`); `formatPercent` recebia fração ("0,1%"/"0,0%"); salvar inflação não recarregava o usuário; campo da
+  inflação engolia o ponto decimal ("4.5" virava 5); sem ativos o patrimônio estimado rendia 0%.
+- `npm test`: **197 testes, 17 arquivos** (novo `portfolioProjection.test.ts`; `precision.golden.test.ts` intocado); `tsc -b`,
+  `oxlint` (só warnings antigos) e build sem erro. Verificado no navegador (mobile 390px e desktop 1280px): cenários 131–135 e 137
+  (`cenarios-de-teste.md` §19); o 136 (teto de Bitcoin) só por teste unitário. **Armadilha de QA:** `page.screenshot({ fullPage: true })` redimensiona a janela e reinicia a
+  animação do Chart.js — o gráfico sai em branco; para conferir o gráfico use screenshot do `<canvas>` depois de ~2 s.
+
+**Próximo:** M5.8 Fase 2 (aporte programado por ativo, ex.: consórcio com prazo — o motor já suporta `toMonth`/`fromMonth`),
+depois M5.9 (tela Investimentos com check-in mensal) e M5.10 (push gratuito via FCM + GitHub Actions). Monte Carlo
+(probabilidade de atingir a meta) é a evolução natural da projeção; M6 — Simulador de Cenários (Feature #3) só depois.

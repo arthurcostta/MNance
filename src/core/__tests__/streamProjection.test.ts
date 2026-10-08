@@ -85,6 +85,21 @@ describe('streamProjection', () => {
       expect(result[12]).toBeCloseTo(expected, 6)
     })
 
+    it('annualGrowth reajusta o aporte a cada 12 meses (10% → 100 no ano 1, 110 no ano 2)', () => {
+      const result = simulateStreams([{ monthlyAmount: 100, annualRate: 0, annualGrowth: 0.1 }], 24)
+
+      expect(result[12]).toBeCloseTo(1200, 6)
+      expect(result[13]).toBeCloseTo(1310, 6) // primeiro mês do ano 2 já com 110
+      expect(result[24]).toBeCloseTo(1200 + 1320, 6)
+    })
+
+    it('annualGrowth 0 ou ausente não altera nada', () => {
+      const without = simulateStreams([{ monthlyAmount: 100, annualRate: 0.05 }], 36)
+      const withZero = simulateStreams([{ monthlyAmount: 100, annualRate: 0.05, annualGrowth: 0 }], 36)
+
+      expect(withZero).toEqual(without)
+    })
+
     it('taxa real negativa perde poder de compra no ritmo da taxa (sem NaN)', () => {
       // 0% nominal com 4,5% de inflação: R$ 1.000 de hoje viram 1000 / 1,045 em 1 ano
       const result = simulateStreams([{ initialBalance: 1000, monthlyAmount: 0, annualRate: 1 / 1.045 - 1 }], 12)

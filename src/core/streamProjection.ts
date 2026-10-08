@@ -25,6 +25,9 @@ export interface PatrimonyStream {
   // Último mês com aporte, inclusive (1-based). Ausente = permanente.
   // Ex.: consórcio com 60 parcelas restantes tem toMonth = 60 — aporta no mês 60, não no 61.
   toMonth?: number
+  // Taxa de crescimento anual do aporte (ex: 0.03 = +3% a.a. acima da inflação). Ausente = 0.
+  // Aporte do mês m = monthlyAmount × (1+g)^floor((m−1)/12).
+  annualGrowth?: number
 }
 
 function sum(values: number[]): number {
@@ -45,8 +48,15 @@ export function simulateStreams(streams: PatrimonyStream[], totalMonths: number)
       const receivesContribution =
         month >= (stream.fromMonth ?? 1) && month <= (stream.toMonth ?? Infinity)
 
+      // Calcula o aporte do mês considerando crescimento anual (ex: +3% a.a.)
+      let monthlyAmount = stream.monthlyAmount
+      if (receivesContribution && stream.annualGrowth && stream.annualGrowth > 0) {
+        const yearIndex = Math.floor((month - 1) / 12)
+        monthlyAmount = stream.monthlyAmount * Math.pow(1 + stream.annualGrowth, yearIndex)
+      }
+
       balances[index] =
-        (balances[index] ?? 0) * (1 + monthlyRate) + (receivesContribution ? stream.monthlyAmount : 0)
+        (balances[index] ?? 0) * (1 + monthlyRate) + (receivesContribution ? monthlyAmount : 0)
     }
     totals.push(sum(balances))
   }
