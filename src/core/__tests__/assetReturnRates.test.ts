@@ -23,4 +23,10 @@ describe('ASSET_RETURN_RATES', () => {
     expect(ASSET_RETURN_RATES.PREVIDENCIA.annualRate).toBeCloseTo(0.06, 10)
     expect(ASSET_RETURN_RATES.CAIXA.annualRate).toBe(0)
   })
+
+  it('consórcio não rende e fica fora da média de classe (não puxa o retorno esperado dos modelos)', () => {
+    expect(ASSET_RETURN_RATES.CONSORCIO.annualRate).toBe(0)
+    expect(ASSET_RETURN_RATES.CONSORCIO.assetClass).toBe('alternatives')
+    expect(ASSET_RETURN_RATES.CONSORCIO.inClassAverage).toBe(false)
+  })
 })

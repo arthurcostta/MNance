@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateAssetForm, type AssetFormInput } from '../usePortfolio'
+import { calculateCommittedContribution, validateAssetForm, type AssetFormInput } from '../usePortfolio'
 
 describe('validateAssetForm', () => {
   const validInput: AssetFormInput = {
@@ -140,6 +140,75 @@ describe('validateAssetForm', () => {
     it('should pass validation with all valid fields', () => {
       const errors = validateAssetForm(validInput, 'add')
       expect(Object.keys(errors).length).toBe(0)
+    })
+  })
+
+  // M5.8 Fase 2: aporte mensal programado (consórcio, CDB programado...).
+  describe('aporte programado', () => {
+    const consorcio: AssetFormInput = {
+      ...validInput,
+      name: 'Consórcio',
+      currentValue: 0,
+      expectedReturnRatePercent: 0,
+      instrumentKey: 'CONSORCIO',
+      monthlyContribution: 1500,
+      remainingInstallments: 60,
+    }
+
+    it('aceita saldo 0 quando há aporte programado (ativo recém-contratado)', () => {
+      expect(validateAssetForm(consorcio, 'add')).toEqual({})
+    })
+
+    it('continua exigindo saldo > 0 sem aporte programado', () => {
+      const errors = validateAssetForm({ ...consorcio, monthlyContribution: 0, remainingInstallments: null }, 'add')
+      expect(errors.currentValue).toBeDefined()
+    })
+
+    it('saldo negativo é erro mesmo com aporte', () => {
+      expect(validateAssetForm({ ...consorcio, currentValue: -1 }, 'add').currentValue).toBeDefined()
+    })
+
+    it('aporte negativo ou NaN é erro', () => {
+      expect(validateAssetForm({ ...consorcio, monthlyContribution: -10 }, 'add').monthlyContribution).toBeDefined()
+      expect(validateAssetForm({ ...consorcio, monthlyContribution: NaN }, 'add').monthlyContribution).toBeDefined()
+    })
+
+    it('parcelas precisam ser um inteiro entre 1 e 600', () => {
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: 0 }, 'add').remainingInstallments).toBeDefined()
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: 1.5 }, 'add').remainingInstallments).toBeDefined()
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: 601 }, 'add').remainingInstallments).toBeDefined()
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: NaN }, 'add').remainingInstallments).toBeDefined()
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: 1 }, 'add').remainingInstallments).toBeUndefined()
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: 600 }, 'add').remainingInstallments).toBeUndefined()
+    })
+
+    it('sem prazo (null) é válido; parcelas sem aporte é erro', () => {
+      expect(validateAssetForm({ ...consorcio, remainingInstallments: null }, 'add')).toEqual({})
+      expect(
+        validateAssetForm({ ...validInput, monthlyContribution: 0, remainingInstallments: 12 }, 'add').remainingInstallments
+      ).toBeDefined()
+    })
+  })
+
+  describe('calculateCommittedContribution', () => {
+    const today = { year: 2026, month: 10 }
+
+    it('soma só os aportes ativos hoje', () => {
+      const total = calculateCommittedContribution(
+        [
+          { monthlyContribution: 1500, contributionEndsAt: '2031-09' },
+          { monthlyContribution: 300 }, // sem prazo
+          { monthlyContribution: 500, contributionEndsAt: '2026-09' }, // encerrado
+          { monthlyContribution: 0, contributionEndsAt: '2030-01' },
+          {},
+        ],
+        today
+      )
+      expect(total).toBe(1800)
+    })
+
+    it('lista vazia = 0', () => {
+      expect(calculateCommittedContribution([], today)).toBe(0)
     })
   })
 })

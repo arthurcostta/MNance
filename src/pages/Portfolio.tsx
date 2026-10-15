@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { usePortfolio, type AssetFormInput, type AssetFormMode } from '../hooks/usePortfolio'
 import type { AssetWithId } from '../types/asset'
+import { endsAtFromRemaining, yearMonthOf } from '../core/installments'
 import { updateUserDocument } from '../services/userService'
 import AssetForm from '../components/Portfolio/AssetForm'
 import AssetList from '../components/Portfolio/AssetList'
@@ -56,6 +57,11 @@ export default function Portfolio() {
 
   const handleFormSubmit = async (data: AssetFormInput & { expectedReturnRate: number }) => {
     if (!user) return
+    const hasContribution = (data.monthlyContribution ?? 0) > 0
+    const endsAt =
+      hasContribution && data.remainingInstallments
+        ? endsAtFromRemaining(data.remainingInstallments, yearMonthOf(new Date()))
+        : null
     setFormSubmitting(true)
     try {
       if (formMode === 'add' || formMode === 'seed') {
@@ -64,6 +70,8 @@ export default function Portfolio() {
           assetClass: data.assetClass,
           currentValue: data.currentValue,
           expectedReturnRate: data.expectedReturnRate,
+          ...(hasContribution ? { monthlyContribution: data.monthlyContribution } : {}),
+          ...(endsAt ? { contributionEndsAt: endsAt } : {}),
         })
         if (formMode === 'seed') {
           await updateUserDocument(user.uid, { portfolioSeedDismissed: true })
@@ -75,6 +83,9 @@ export default function Portfolio() {
           currentValue: data.currentValue,
           expectedReturnRate: data.expectedReturnRate,
           assetClass: data.assetClass,
+          // null remove o campo do documento (aporte desligado ou sem prazo).
+          monthlyContribution: hasContribution ? data.monthlyContribution : null,
+          contributionEndsAt: endsAt ?? null,
         })
       }
       setFormMode('closed')
@@ -119,6 +130,15 @@ export default function Portfolio() {
             {portfolio.totalValue > 0 ? `${formatPercent(portfolio.weightedReturn * 100, 2)} a.a.` : '—'}
           </p>
         </Card>
+        {portfolio.committedContribution > 0 && (
+          <Card className="col-span-2">
+            <p className="text-xs font-medium text-gray-600">Aportes programados</p>
+            <p className="mt-2 text-xl font-semibold text-gray-900">
+              {formatCurrency(portfolio.committedContribution)}/mês
+            </p>
+            <p className="mt-1 text-xs text-gray-500">Saem da sua fatia de Investimentos (veja o Radar).</p>
+          </Card>
+        )}
       </div>
 
       {showSeedBanner && (

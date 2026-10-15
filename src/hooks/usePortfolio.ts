@@ -2,7 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Asset, AssetWithId } from '../types/asset'
 import type { AssetClass } from '../core/assetReturnRates'
 import { calculateWeightedReturn } from '../core/weightedReturn'
-import { getAssets, addAsset as addAssetService, updateAsset as updateAssetService, archiveAsset as archiveAssetService } from '../services/assetService'
+import {
+  isContributionActive,
+  resolveRemainingMonths,
+  yearMonthOf,
+  type YearMonth,
+} from '../core/installments'
+import {
+  getAssets,
+  addAsset as addAssetService,
+  updateAsset as updateAssetService,
+  archiveAsset as archiveAssetService,
+  type AssetUpdate,
+} from '../services/assetService'
+
+export const MAX_REMAINING_INSTALLMENTS = 600
 
 export interface AssetFormInput {
   name: string
@@ -10,6 +24,10 @@ export interface AssetFormInput {
   currentValue: number
   expectedReturnRatePercent: number
   instrumentKey?: string
+  // Aporte mensal programado (R$); 0/ausente = sem aporte.
+  monthlyContribution?: number
+  // Parcelas restantes (mês corrente incluso); null/ausente = sem prazo. Só vale com aporte.
+  remainingInstallments?: number | null
 }
 
 export interface AssetFormValues extends AssetFormInput {
@@ -29,8 +47,27 @@ export function validateAssetForm(
     errors.name = 'Informe um nome para o ativo.'
   }
 
-  if (input.currentValue <= 0) {
-    errors.currentValue = 'O valor precisa ser maior que zero.'
+  const contribution = input.monthlyContribution ?? 0
+  const hasContribution = contribution > 0
+
+  // Ativo recém-contratado com aporte programado (ex.: consórcio) pode começar com saldo 0.
+  if (!Number.isFinite(input.currentValue) || input.currentValue < 0 || (!hasContribution && input.currentValue === 0)) {
+    errors.currentValue = hasContribution
+      ? 'O valor não pode ser negativo.'
+      : 'O valor precisa ser maior que zero (ou informe um aporte mensal programado).'
+  }
+
+  if (!Number.isFinite(contribution) || contribution < 0) {
+    errors.monthlyContribution = 'O aporte mensal não pode ser negativo.'
+  }
+
+  const remaining = input.remainingInstallments
+  if (remaining !== undefined && remaining !== null) {
+    if (!hasContribution) {
+      errors.remainingInstallments = 'Informe o aporte mensal para definir as parcelas restantes.'
+    } else if (!Number.isInteger(remaining) || remaining < 1 || remaining > MAX_REMAINING_INSTALLMENTS) {
+      errors.remainingInstallments = `Informe um número inteiro de parcelas entre 1 e ${MAX_REMAINING_INSTALLMENTS}.`
+    }
   }
 
   if (isNaN(input.expectedReturnRatePercent) || !isFinite(input.expectedReturnRatePercent)) {
@@ -46,6 +83,17 @@ export function validateAssetForm(
   }
 
   return errors
+}
+
+// Soma dos aportes programados ainda ativos hoje (valor > 0 e parcelas restantes), em R$/mês.
+export function calculateCommittedContribution(
+  assets: Pick<Asset, 'monthlyContribution' | 'contributionEndsAt'>[],
+  today: YearMonth
+): number {
+  return assets.reduce((sum, asset) => {
+    const remaining = resolveRemainingMonths(asset.contributionEndsAt, today)
+    return isContributionActive(asset.monthlyContribution, remaining) ? sum + (asset.monthlyContribution ?? 0) : sum
+  }, 0)
 }
 
 export function usePortfolio(uid: string | undefined) {
@@ -104,6 +152,8 @@ export function usePortfolio(uid: string | undefined) {
     return calculateWeightedReturn(assets.map((a) => ({ amount: a.currentValue, expectedReturnRate: a.expectedReturnRate })))
   }, [assets, totalValue])
 
+  const committedContribution = useMemo(() => calculateCommittedContribution(assets, yearMonthOf(new Date())), [assets])
+
   const addAsset = useCallback(
     async (data: Omit<Asset, 'status' | 'createdAt' | 'updatedAt'>) => {
       if (!uid) return
@@ -121,7 +171,7 @@ export function usePortfolio(uid: string | undefined) {
   )
 
   const updateAsset = useCallback(
-    async (assetId: string, data: Partial<Omit<Asset, 'status' | 'createdAt' | 'updatedAt'>>) => {
+    async (assetId: string, data: AssetUpdate) => {
       if (!uid) return
       setActionError(null)
       try {
@@ -156,6 +206,7 @@ export function usePortfolio(uid: string | undefined) {
     assets,
     totalValue,
     weightedReturn,
+    committedContribution,
     loadingInitial,
     actionError,
     addAsset,

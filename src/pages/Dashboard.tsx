@@ -70,10 +70,13 @@ export default function Dashboard() {
     await refreshCurrentUser()
   }
 
+  // Com parcelas programadas (ex.: consórcio), as alavancas incidem só sobre o aporte livre.
+  const { contributions } = metrics
+  const leverTarget = contributions.committed > 0 ? 'o aporte livre' : 'o aporte'
   const levers = [
-    boosted ? describeLever('Aumentando o aporte em 20%', boosted, base, goalYears) : null,
+    boosted ? describeLever(`Aumentando ${leverTarget} em 20%`, boosted, base, goalYears) : null,
     stepUp
-      ? describeLever('Se o aporte crescer 3% ao ano acima da inflação', stepUp, base, goalYears)
+      ? describeLever(`Se ${leverTarget} crescer 3% ao ano acima da inflação`, stepUp, base, goalYears)
       : null,
   ].filter((line): line is string => line !== null)
 
@@ -161,7 +164,11 @@ export default function Dashboard() {
           <p className="mt-2 text-sm text-gray-800">
             Para atingir a meta em {goalYears} {goalYears === 1 ? 'ano' : 'anos'} seria preciso investir cerca de{' '}
             <span className="font-semibold">{formatCurrency(monthlyNeeded)}/mês</span> (hoje:{' '}
-            {formatCurrency(assumptions.investmentsPlan)}/mês)
+            {formatCurrency(contributions.effectiveMonthly)}/mês
+            {contributions.committed > 0
+              ? `, incluindo ${formatCurrency(contributions.committed)} de parcelas programadas`
+              : ''}
+            )
             {monthlyNeededConservative !== null && monthlyNeededConservative > monthlyNeeded
               ? `; no cenário conservador, cerca de ${formatCurrency(monthlyNeededConservative)}/mês.`
               : '.'}

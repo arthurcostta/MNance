@@ -427,7 +427,7 @@ Origem: pente fino de QA em navegador automatizado (persona "Rafael"), registrad
   navegador: cenários 121–130 (`cenarios-de-teste.md` §18; a §14 do Nível 2 está marcada como superada).
 
 **M5.8 · Fase 3 + 3b — Radar sobre os ativos reais + projeção realista e auditável: concluída (Fase 3 commitada
-em `b4d8faf`; a 3b ainda sem commit).** **Substitui a decisão #1 do M4** (aporte = renda − custo essencial): o aporte
+em `b4d8faf` e a 3b em `07be729`).** **Substitui a decisão #1 do M4** (aporte = renda − custo essencial): o aporte
 é `Distribuição.flow.investmentsPlan` (fatia de Investimentos + saldo roteado) e o patrimônio são os ativos reais.
 - **Onde vive o cálculo:** `core/portfolioProjection.ts` (TS puro, testado) — `blendRates`, `calculateProjectionMetrics`
   e a bissecção do aporte necessário; `hooks/useProjection.ts` é só uma casca (busca ativos/usuário, devolve
@@ -454,6 +454,38 @@ em `b4d8faf`; a 3b ainda sem commit).** **Substitui a decisão #1 do M4** (aport
   (`cenarios-de-teste.md` §19); o 136 (teto de Bitcoin) só por teste unitário. **Armadilha de QA:** `page.screenshot({ fullPage: true })` redimensiona a janela e reinicia a
   animação do Chart.js — o gráfico sai em branco; para conferir o gráfico use screenshot do `<canvas>` depois de ~2 s.
 
-**Próximo:** M5.8 Fase 2 (aporte programado por ativo, ex.: consórcio com prazo — o motor já suporta `toMonth`/`fromMonth`),
-depois M5.9 (tela Investimentos com check-in mensal) e M5.10 (push gratuito via FCM + GitHub Actions). Monte Carlo
-(probabilidade de atingir a meta) é a evolução natural da projeção; M6 — Simulador de Cenários (Feature #3) só depois.
+**M5.8 · Fase 2 — Aporte programado por ativo (consórcio e similares): implementada, ainda sem commit.** O aporte
+programado é **atributo do ativo** (cadastrado no Portfólio), não uma seção da Distribuição.
+- **Dados:** `Asset.monthlyContribution?` (R$/mês, valores de hoje) e `Asset.contributionEndsAt?` (`'YYYY-MM'`, último mês
+  de aporte; ausente = permanente). Guarda-se o **mês final**, não um contador: `core/installments.ts`
+  (`remainingInstallments`, `endsAtFromRemaining`, `isContributionActive`; só números, sem `Date`) recalcula as parcelas
+  restantes sozinho — **o mês corrente conta como parcela**. `assetService.updateAsset` aceita `null` para **remover** os
+  campos (`deleteField()`; o Firestore não aceita `undefined`). Catálogo ganhou `CONSORCIO` (alternativos, 0%,
+  `inClassAverage: false` → médias de classe e retorno esperado dos modelos não mudam). `firestore.rules` não mudou.
+- **Regras do modelo** (`core/portfolioProjection.ts`): `committed` = soma dos aportes ativos hoje; `free = max(0, plano −
+  committed)`; `effectiveMonthly = max(plano, committed)` (a parcela é paga mesmo se passar da fatia → aviso "aumente
+  Investimentos em ≈ X p.p.", nada muda sozinho). Fluxos: patrimônio atual e aporte livre na taxa da carteira; **um fluxo por
+  aporte programado na taxa própria** (o teto de 14% vale também aqui) até `toMonth`; ao terminar, o valor liberado **segue
+  investido como aporte livre** (premissa escrita no painel, com a data). **+20% e "+3% a.a." incidem só no aporte livre**
+  (parcela contratual não "sobe"); sem aporte livre as alavancas somem. O deslocamento dos cenários **não** se aplica a
+  fluxos de 0% nominal (sem retorno não há IR nem volatilidade a descontar). `requiredContribution` = **total mensal**
+  (parcelas + livre necessário), comparável com `effectiveMonthly`; 0 = só com o programado a meta fecha.
+- **Correções junto:** `estimated` agora é `assets.length === 0` (antes, ativos novos com saldo 0 acusariam "nenhum ativo
+  cadastrado"); ativo com saldo **0 é válido** quando tem aporte programado (consórcio recém-contratado) — sem aporte, o
+  saldo continua `> 0`.
+- **UI:** Portfólio — campos opcionais "Aporte mensal" e "Parcelas restantes" (texto; vazio = sem prazo), linha
+  "aporta R$ X/mês · restam N parcelas (até mm/aaaa)" ou "encerrado", card "Aportes programados", linhas da lista
+  empilham no celular; Radar — painel de premissas lista cada aporte, o aporte livre e o aviso de falta; as frases das
+  alavancas falam em "aporte livre".
+- `npm test`: **236 testes, 19 arquivos** (novos `installments.test.ts` e `portfolioContributions.test.ts`, este conferido contra
+  fórmula fechada fluxo a fluxo; extensões em `usePortfolio` e `assetReturnRates`); `tsc -b`, `oxlint` (só warnings antigos) e
+  build sem erro. Verificado no navegador (mobile 390px e desktop 1280px) e contra um script independente
+  (`C:\Dev\mnance-qa\check-fase2.mjs`): parcela > fatia → ~49a1m e R$ 937.009 no prazo; "Investir tudo" → ~38a3m, R$ 1.922.418 e
+  +20% → 36a10m (cenários 138–142 no navegador; 143 e 144 só por teste unitário — `cenarios-de-teste.md` §20). O Firestore só foi conferido
+  pela interface (recarregar e reabrir a edição), não no console.
+- **Lacuna conhecida (herdada da Fase 3):** a tela de Distribuição ainda **não** tem o cartão "no ritmo planejado você chega à
+  meta em X (prazo: Y anos)" que o plano da Fase 3 previa; só o Radar mostra o prazo.
+
+**Próximo:** M5.9 (tela Investimentos com check-in mensal — os fluxos já recebem `monthlyAmount`, então a aderência entra como
+um fator) e M5.10 (push gratuito via FCM + GitHub Actions). Monte Carlo (probabilidade de atingir a meta) é a evolução natural
+da projeção; M6 — Simulador de Cenários (Feature #3) só depois.

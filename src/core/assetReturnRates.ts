@@ -32,6 +32,7 @@ export type AssetInstrumentKey =
   | 'BITCOIN'
   | 'PREVIDENCIA'
   | 'CAIXA'
+  | 'CONSORCIO'
 
 export const ASSET_RETURN_RATES: Record<AssetInstrumentKey, AssetReturnRate> = {
   TESOURO_SELIC: { label: 'Tesouro Selic', assetClass: 'bonds', annualRate: 0.115 },
@@ -46,4 +47,6 @@ export const ASSET_RETURN_RATES: Record<AssetInstrumentKey, AssetReturnRate> = {
   BITCOIN: { label: 'Bitcoin', assetClass: 'alternatives', annualRate: 0.45, inClassAverage: false },
   PREVIDENCIA: { label: 'Previdência Privada', assetClass: 'bonds', annualRate: 0.06 },
   CAIXA: { label: 'Caixa', assetClass: 'cash', annualRate: 0 },
+  // Parcelas pagas não rendem; fica fora da média de classe para não puxar o retorno esperado dos modelos.
+  CONSORCIO: { label: 'Consórcio (sem rendimento)', assetClass: 'alternatives', annualRate: 0, inClassAverage: false },
 }

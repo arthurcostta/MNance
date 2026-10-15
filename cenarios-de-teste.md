@@ -2209,6 +2209,50 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 20. Aporte programado por ativo (consórcio) `[M5.8 Fase 2]`
+
+### CENÁRIO 138: Ativo com saldo 0 só vale com aporte programado `[M5.8]`
+
+**Categoria:** Validação
+**Passos:** 1. Portfólio → "+ Adicionar Ativo" → instrumento "Consórcio (sem rendimento)", nome qualquer, valor atual R$ 0,00 → "Adicionar".
+**Resultado esperado:** Erro "O valor precisa ser maior que zero (ou informe um aporte mensal programado)". Informando aporte mensal de R$ 1.500 e parcelas restantes 60, o ativo é salvo com saldo R$ 0,00. Aporte negativo e parcelas 0, 1,5 ou 601 são recusados; parcelas sem aporte também.
+
+### CENÁRIO 139: Lista e totais do Portfólio `[M5.8]`
+
+**Categoria:** Happy path
+**Resultado esperado:** A linha mostra "aporta R$ 1.500,00/mês · restam 60 parcelas (até mm/aaaa)" (o mês corrente conta) e aparece o card "Aportes programados R$ 1.500,00/mês". Em 390px a linha empilha os botões abaixo, sem cortar texto. Sem prazo: "(sem prazo)". Mês final no passado: "aporte de R$ … encerrado em mm/aaaa" e o valor sai do card.
+
+### CENÁRIO 140: Editar e remover o aporte `[M5.8]`
+
+**Categoria:** Happy path / persistência
+**Passos:** 1. Editar o ativo: o campo "Parcelas restantes" vem preenchido (60); mudar para 38 → a lista mostra "restam 38 parcelas (até 11/2029)". 2. Editar de novo e zerar o aporte → "Atualizar".
+**Resultado esperado:** Os campos de aporte somem da linha e o card "Aportes programados" desaparece (os campos são removidos do documento, não gravados como 0).
+
+### CENÁRIO 141: Parcela maior que a fatia de Investimentos `[M5.8]`
+
+**Categoria:** Edge case
+**Pré-condições:** Aporte planejado R$ 1.445,25 (regra do saldo "Usar em lazer"); consórcio de R$ 1.500.
+**Resultado esperado:** O Radar usa o valor realmente pago (R$ 1.500,00/mês) e o painel mostra o aviso "passam do aporte planejado em R$ 54,75 … aumente Investimentos em ≈ 0,9 p.p." com link para a Distribuição. Não há bloco "O que mais acelera sua meta" (sem aporte livre). Nada é alterado sozinho. Tempo até a meta ≈ 49a1m e R$ 937.009 no prazo (conferido por `check-fase2.mjs`).
+
+### CENÁRIO 142: Parcela cabe na fatia — aporte livre e alavancas `[M5.8]`
+
+**Categoria:** Happy path
+**Pré-condições:** Regra do saldo "Investir tudo" (plano R$ 2.878,80); consórcio de R$ 1.500 por 60 parcelas.
+**Resultado esperado:** Painel: "Aportes programados R$ 1.500,00/mês", "depois, os R$ 1.500,00 continuam sendo investidos como aporte livre" e "Aporte livre R$ 1.378,80/mês". Tempo até a meta ≈ 38a3m e R$ 1.922.418 no prazo; "+20%" → 36a10m e "+3% a.a." → 35a3m, ambos descritos como "aporte livre". A frase do aporte necessário diz "(hoje: R$ 2.878,80/mês, incluindo R$ 1.500,00 de parcelas programadas)". O aviso de falta não aparece.
+
+### CENÁRIO 143: Taxa e cenários do fluxo a 0% `[M5.8]`
+
+**Categoria:** Regra de negócio
+**Resultado esperado:** O painel lista o consórcio a "0,0% a.a."; um aporte programado com taxa acima de 14% usa o teto. O cenário conservador não desloca o fluxo a 0%. (Coberto por testes unitários.)
+
+### CENÁRIO 144: Ativo novo com saldo 0 não é "estimativa" `[M5.8]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta cujo único ativo é um consórcio com saldo 0.
+**Resultado esperado:** O Radar **não** mostra "Você ainda não tem ativos cadastrados" nem "(estimado)"; o patrimônio atual é R$ 0,00 e o retorno vem da estratégia do perfil. (Coberto por teste unitário; não executado no navegador.)
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
@@ -2217,3 +2261,4 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 | 07/10/2026 | M5.8 Fase 0 (correções, commit `2fde3e1`) | 113, 114, 115, 120 + 06/71/72 atualizados + navegação enxuta + vírgula decimal, no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` | 0 | **113:** login → `/` (rotas vistas: `/login`, `/`), sem passar por `/onboarding`. **114:** "Aposentadoria 40%" e "Casa + Carro 2031 60%" intactos após "Atualizar" no onboarding. **115:** "Sair" na tela Conta (mobile) e na sidebar (desktop) leva a `/login`; abrir `/` sem sessão volta a `/login`. **120:** `tsc` 0 erros, 181 testes verdes (17 arquivos), `oxlint` exit 0 (só warnings antigos), `npm run build` exit 0. Rotas removidas (`/simulator`, `/expenses`, `/installments`, `/calendar`, `/report`, `/settings`, `/more`) redirecionam para `/`. Percentuais em pt-BR ("12,1% a.a."). **Ainda abertos (de propósito, Fases 1–3):** 116, 117, 118, 119 — o Radar continua em 22 anos e 8 meses porque a projeção realista ainda não foi construída. |
 | 07/10/2026 | M5.8 Fase 1 (Distribuição enxuta + destino do saldo, não commitada) | 121–130 no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` (documento antigo, ainda com `investmentBuckets`) e uma conta nova | 0 | Passaram todos: Nível 2 e "Retorno esperado" sumiram; estado pendente com botão desabilitado; "Investir tudo" → R$ 2.878,80, persistido após recarregar e refletido no Radar; Dividir 70/30 → R$ 1.003,49 + R$ 430,06 (soma exata) e aporte R$ 2.448,74; Cancelar preserva a regra; "Usar em lazer" → R$ 1.445,25; despesa de R$ 2.000 → aviso de estouro de R$ 566,45 sem roteamento; conta nova sem lista → dica, sem "Decisão pendente", aporte R$ 1.000,00. `tsc` 0 erros, 186 testes (17 arquivos), `oxlint` exit 0. Seção 14 (cenários 91–103, Nível 2) marcada como superada. **Ainda abertos:** 116–119 (Fases 2–3). Segunda conta de teste criada: `qa.sem-lista.*@mnance-teste.dev`. |
 | 07/10/2026 | M5.8 Fase 3b (Radar realista, não commitada) | 131–135, 137 + 116, 117 e 119 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael` e `qa.sem-lista` | 0 | Card, alerta, alavancas e gráfico coerentes (~45a4m; no prazo R$ 1,2 mi = 24,5% da meta; aporte necessário R$ 6.725/mês, conservador R$ 9.095); inflação 4,5% → 0% muda o Radar sem F5 (~30a7m) e `4.5` agora é aceito; painel sem "0,1%/0,0%"; conta sem ativos usa 8,7% nominal / 4,0% real. Bitcoin: coberto por teste unitário (`portfolioProjection.test.ts`), **não** executado no navegador. `tsc` 0 erros, 197 testes (17 arquivos), build ok. **Fecham:** 116, 117, 119. |
+| 07/10/2026 | M5.8 Fase 2 (aporte programado por ativo, não commitada) | 138–142 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael`; números conferidos contra `check-fase2.mjs` (script independente) | 0 | Validação de saldo 0; consórcio R$ 1.500 × 60 parcelas (restam 60 até 09/2031; edição para 38 → até 11/2029; zerar o aporte limpa a linha e o card). Plano R$ 1.445,25: ~49a1m, R$ 937.009 no prazo, aviso de falta de R$ 54,75 (≈ 0,9 p.p.). "Investir tudo": ~38a3m, R$ 1.922.418, +20% → 36a10m. Dados de teste desfeitos (consórcios arquivados; regra do saldo de volta a "Usar em lazer"). 143 e 144 só por testes unitários; o Firestore foi conferido só pela interface. `tsc` 0 erros, 236 testes (19 arquivos), build ok. **Achado:** a Distribuição não tem o cartão "bate sua meta" prevista na Fase 3. |

@@ -5,6 +5,7 @@
 // o tamanho do aporte (+20%) ou o crescimento do aporte (alavanca de 3% a.a.).
 
 import { toRealRate } from './inflation'
+import { isContributionActive } from './installments'
 import {
   calculateGoalTimelineFromStreams,
   simulateStreams,
@@ -35,6 +36,11 @@ export interface ProjectionAssetInput {
   name?: string
   currentValue: number
   expectedReturnRate: number
+  // Aporte mensal programado deste ativo (R$, valores de hoje), ex.: parcela de consórcio.
+  monthlyContribution?: number
+  // Parcelas restantes a partir de hoje (mês corrente incluso), já resolvidas pelo chamador — o core não
+  // conhece "hoje". Ausente/null = sem prazo (permanente); ≤ 0 = encerrado.
+  remainingMonths?: number | null
 }
 
 export interface CappedAsset {
@@ -92,6 +98,63 @@ export function blendRates(
   }
 }
 
+export interface ProgrammedContribution {
+  name?: string
+  monthlyAmount: number
+  // Taxa nominal própria do ativo, já com o teto de longo prazo.
+  usedNominalRate: number
+  realRate: number
+  // Parcelas restantes (mês corrente incluso); null = permanente.
+  remainingMonths: number | null
+}
+
+export interface ContributionBreakdown {
+  // Soma dos aportes programados ativos hoje.
+  committed: number
+  // Parte do aporte planejado que não está comprometida: max(0, plano − committed). Rende à taxa da carteira.
+  free: number
+  // O que realmente sai por mês: max(plano, committed) — a parcela contratual é paga mesmo se passar da fatia.
+  effectiveMonthly: number
+  // Quanto os aportes programados passam do aporte planejado (0 quando cabem).
+  shortfall: number
+  programmed: ProgrammedContribution[]
+}
+
+// Aportes programados ativos hoje (valor > 0 e parcelas restantes) + a divisão do aporte planejado.
+export function buildContributionBreakdown(
+  assets: ProjectionAssetInput[],
+  investmentsPlan: number,
+  inflationRate: number
+): ContributionBreakdown {
+  const programmed: ProgrammedContribution[] = []
+
+  for (const asset of assets) {
+    const monthlyAmount = asset.monthlyContribution ?? 0
+    const remaining = asset.remainingMonths ?? null
+    if (!isContributionActive(monthlyAmount, remaining)) continue
+
+    const usedNominalRate = Math.min(asset.expectedReturnRate, MAX_LONG_RUN_NOMINAL_RATE)
+    programmed.push({
+      ...(asset.name !== undefined ? { name: asset.name } : {}),
+      monthlyAmount,
+      usedNominalRate,
+      realRate: toRealRate(usedNominalRate, inflationRate),
+      remainingMonths: remaining,
+    })
+  }
+
+  const committed = programmed.reduce((sum, item) => sum + item.monthlyAmount, 0)
+  const plan = Math.max(0, investmentsPlan)
+
+  return {
+    committed,
+    free: Math.max(0, plan - committed),
+    effectiveMonthly: Math.max(plan, committed),
+    shortfall: Math.max(0, committed - plan),
+    programmed,
+  }
+}
+
 export interface ProjectionInput {
   assets: ProjectionAssetInput[]
   // Patrimônio informado no onboarding — só usado quando não há ativos cadastrados.
@@ -119,10 +182,12 @@ export interface ProjectionMetrics {
   rates: BlendedRates
   estimated: boolean
   startingPatrimony: number
+  contributions: ContributionBreakdown
   base: ProjectionVariant
   conservative: ProjectionVariant
   optimistic: ProjectionVariant
-  // Alavancas (null quando não há aporte para alavancar ou a meta já foi atingida).
+  // Alavancas sobre o aporte LIVRE (parcela contratual não "sobe"); null quando não há aporte livre
+  // ou a meta já foi atingida.
   boosted: ProjectionVariant | null
   stepUp: ProjectionVariant | null
   chartYears: number
@@ -130,9 +195,10 @@ export interface ProjectionMetrics {
   meetsDeadline: boolean
   // % da meta que o plano atual alcança no prazo (pode passar de 100).
   deadlineProgressPercent: number
-  // Aporte mensal necessário para fechar a meta no prazo; 0 = já fecha sem aportar; null = inviável.
+  // Total mensal necessário (parcelas programadas + aporte livre) para fechar a meta no prazo, comparável com
+  // contributions.effectiveMonthly; 0 = só com o que já está programado a meta fecha; null = inviável.
   requiredContribution: { base: number | null; conservative: number | null }
-  // "O que entra por mês agora": aporte planejado + rendimento mensal nominal do patrimônio atual.
+  // "O que entra por mês agora": aporte efetivo + rendimento mensal nominal do patrimônio atual.
   velocity: number
 }
 
@@ -140,27 +206,54 @@ interface VariantOptions {
   rateShift?: number
   contributionBoost?: number
   contributionGrowth?: number
-  // Sobrescreve o aporte (usado na busca do aporte necessário).
-  contributionAmount?: number
+  // Sobrescreve o aporte livre (usado na busca do aporte necessário).
+  freeAmount?: number
+}
+
+// O deslocamento do cenário representa IR + arrasto de volatilidade sobre um retorno; um fluxo a 0% nominal
+// (consórcio, caixa) não tem nenhum dos dois, então fica de fora. A inflação continua corroendo a taxa real.
+function shiftedRate(realRate: number, nominalRate: number, shift: number): number {
+  return nominalRate > 0 ? realRate + shift : realRate
 }
 
 function buildStreams(
   rates: BlendedRates,
   startingPatrimony: number,
-  investmentsPlan: number,
+  contributions: ContributionBreakdown,
   options: VariantOptions = {}
 ): PatrimonyStream[] {
-  const realRate = rates.realUsed + (options.rateShift ?? 0)
-  const monthlyAmount = options.contributionAmount ?? investmentsPlan * (options.contributionBoost ?? 1)
+  const shift = options.rateShift ?? 0
+  const portfolioRate = shiftedRate(rates.realUsed, rates.nominalUsed, shift)
+  const freeAmount = options.freeAmount ?? contributions.free * (options.contributionBoost ?? 1)
 
-  return [
-    { initialBalance: startingPatrimony, monthlyAmount: 0, annualRate: realRate },
+  const streams: PatrimonyStream[] = [
+    { initialBalance: startingPatrimony, monthlyAmount: 0, annualRate: portfolioRate },
     {
-      monthlyAmount,
-      annualRate: realRate,
+      monthlyAmount: freeAmount,
+      annualRate: portfolioRate,
       ...(options.contributionGrowth ? { annualGrowth: options.contributionGrowth } : {}),
     },
   ]
+
+  for (const item of contributions.programmed) {
+    streams.push({
+      monthlyAmount: item.monthlyAmount,
+      annualRate: shiftedRate(item.realRate, item.usedNominalRate, shift),
+      ...(item.remainingMonths !== null ? { toMonth: item.remainingMonths } : {}),
+    })
+
+    // Terminada a parcela, o valor liberado segue sendo investido (a fatia de Investimentos não muda sozinha),
+    // agora na taxa da carteira. Premissa escrita no painel de premissas.
+    if (item.remainingMonths !== null) {
+      streams.push({
+        monthlyAmount: item.monthlyAmount,
+        annualRate: portfolioRate,
+        fromMonth: item.remainingMonths + 1,
+      })
+    }
+  }
+
+  return streams
 }
 
 function projectVariant(
@@ -181,11 +274,13 @@ function projectVariant(
   }
 }
 
-// Aporte mensal necessário para o patrimônio atingir a meta em goalYears. O patrimônio final é monótono no
-// aporte, então uma bissecção sobre o próprio motor basta (sem segunda fórmula para divergir do gráfico).
+// Total mensal necessário para o patrimônio atingir a meta em goalYears. O patrimônio final é monótono no
+// aporte livre, então uma bissecção sobre o próprio motor basta (sem segunda fórmula para divergir do gráfico).
+// As parcelas programadas ficam como estão; o resultado é parcelas + aporte livre necessário.
 function findRequiredContribution(
   rates: BlendedRates,
   startingPatrimony: number,
+  contributions: ContributionBreakdown,
   goalAmount: number,
   goalYears: number,
   rateShift: number
@@ -193,8 +288,8 @@ function findRequiredContribution(
   const months = goalYears * 12
   if (months <= 0) return null
 
-  const finalValue = (contributionAmount: number) => {
-    const streams = buildStreams(rates, startingPatrimony, 0, { rateShift, contributionAmount })
+  const finalValue = (freeAmount: number) => {
+    const streams = buildStreams(rates, startingPatrimony, contributions, { rateShift, freeAmount })
     return simulateStreams(streams, months)[months] ?? 0
   }
 
@@ -214,20 +309,24 @@ function findRequiredContribution(
     }
   }
 
-  return Math.ceil(high)
+  return Math.ceil(contributions.committed + high)
 }
 
 export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMetrics {
   const { assets, investmentsPlan, goalAmount, goalYears, inflationRate } = input
 
   const rates = blendRates(assets, input.strategyNominalRate, inflationRate)
-  const estimated = rates.source === 'strategy'
+  // "Estimado" = o patrimônio vem do onboarding porque não há ativos. Ativos com saldo 0 (ex.: consórcio recém-
+  // contratado) não são estimativa, mesmo que a taxa então venha da estratégia do perfil.
+  const estimated = assets.length === 0
   const startingPatrimony = estimated
     ? input.startingPatrimonyEstimate
     : assets.reduce((sum, asset) => sum + asset.currentValue, 0)
 
+  const contributions = buildContributionBreakdown(assets, investmentsPlan, inflationRate)
+
   const horizonYears = Math.max(PROJECTION_HORIZON_YEARS, goalYears)
-  const stream = (options?: VariantOptions) => buildStreams(rates, startingPatrimony, investmentsPlan, options)
+  const stream = (options?: VariantOptions) => buildStreams(rates, startingPatrimony, contributions, options)
 
   // O horizonte do gráfico depende da resposta do cenário base: primeiro o tempo, depois a série.
   const baseTimeline = calculateGoalTimelineFromStreams({
@@ -247,7 +346,7 @@ export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMe
   const conservative = project({ rateShift: SCENARIO_REAL_RATE_SHIFT.conservative })
   const optimistic = project({ rateShift: SCENARIO_REAL_RATE_SHIFT.optimistic })
 
-  const canLeverage = investmentsPlan > 0 && !(base.reachable && base.years === 0)
+  const canLeverage = contributions.free > 0 && !(base.reachable && base.years === 0)
   const boosted = canLeverage ? project({ contributionBoost: BOOST_FACTOR }) : null
   const stepUp = canLeverage ? project({ contributionGrowth: STEP_UP_RATE }) : null
 
@@ -258,6 +357,7 @@ export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMe
     rates,
     estimated,
     startingPatrimony,
+    contributions,
     base,
     conservative,
     optimistic,
@@ -268,15 +368,16 @@ export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMe
     meetsDeadline,
     deadlineProgressPercent: goalAmount > 0 ? (base.valueAtDeadline / goalAmount) * 100 : 100,
     requiredContribution: {
-      base: findRequiredContribution(rates, startingPatrimony, goalAmount, goalYears, 0),
+      base: findRequiredContribution(rates, startingPatrimony, contributions, goalAmount, goalYears, 0),
       conservative: findRequiredContribution(
         rates,
         startingPatrimony,
+        contributions,
         goalAmount,
         goalYears,
         SCENARIO_REAL_RATE_SHIFT.conservative
       ),
     },
-    velocity: investmentsPlan + monthlyNominalReturn,
+    velocity: contributions.effectiveMonthly + monthlyNominalReturn,
   }
 }

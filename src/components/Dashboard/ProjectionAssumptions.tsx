@@ -2,6 +2,7 @@
 // poder auditar o número do Radar, e permite editar a inflação (única premissa editável por enquanto).
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatPercent } from '../../utils/formatPercent'
 import {
   MAX_LONG_RUN_NOMINAL_RATE,
@@ -46,6 +47,7 @@ function toDraft(rate: number): string {
 }
 
 export function ProjectionAssumptions({ assumptions, onInflationChange }: ProjectionAssumptionsProps) {
+  const { contributions } = assumptions
   const [editingInflation, setEditingInflation] = useState(false)
   const [inflationDraft, setInflationDraft] = useState(toDraft(assumptions.inflationRate))
   const [saving, setSaving] = useState(false)
@@ -134,6 +136,42 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
               = fatia de Investimentos + saldo das essenciais (conforme sua regra), constante em valores de hoje
             </span>
           </div>
+
+          {contributions.programmed.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="text-xs font-medium text-gray-700">
+                Aportes programados dos ativos: {formatBRL(contributions.committed)}/mês
+              </div>
+              <ul className="list-inside list-disc space-y-1 text-xs text-gray-600">
+                {contributions.programmed.map((item, index) => (
+                  <li key={`${item.name}-${index}`}>
+                    {item.name}: {formatBRL(item.monthlyAmount)}/mês a {formatRate(item.usedNominalRate)} a.a.
+                    {item.remainingMonths === null
+                      ? ' · sem prazo.'
+                      : ` · ${item.remainingMonths} ${item.remainingMonths === 1 ? 'parcela' : 'parcelas'} (até ${item.endsLabel}); depois, os ${formatBRL(item.monthlyAmount)} continuam sendo investidos como aporte livre.`}
+                  </li>
+                ))}
+              </ul>
+              <div className="text-xs text-gray-600">
+                Aporte livre (o restante do plano, na taxa da carteira):{' '}
+                <span className="font-semibold">{formatBRL(contributions.free)}/mês</span>. Os cenários +20% e
+                crescimento do aporte incidem só sobre ele.
+              </div>
+            </div>
+          )}
+
+          {contributions.shortfall > 0 && (
+            <p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+              Seus aportes programados ({formatBRL(contributions.committed)}) passam do aporte planejado em{' '}
+              {formatBRL(contributions.shortfall)}. A projeção considera o valor que você realmente paga (
+              {formatBRL(contributions.effectiveMonthly)}/mês).{' '}
+              {contributions.shortfallPercentPoints !== null &&
+                `Para a Distribuição refletir isso, aumente Investimentos em ≈ ${contributions.shortfallPercentPoints.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p. `}
+              <Link to="/distribution" className="font-medium underline">
+                Ajustar distribuição
+              </Link>
+            </p>
+          )}
         </div>
 
         <div>
@@ -225,6 +263,10 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
             <li>Retornos brutos (sem imposto de renda ou taxas) — veja o cenário conservador.</li>
             <li>Renda e aportes constantes em valores de hoje (sem aumentos reais).</li>
             <li>Lazer, Educação e Caixa da Empresa não entram na projeção — só o que você investe.</li>
+            <li>
+              Consórcio é tratado só como fluxo de caixa que rende a taxa informada (0%): carta de crédito e
+              contemplação não são modeladas.
+            </li>
             <li>
               Horizonte de {PROJECTION_HORIZON_YEARS} anos: além disso o número perde sentido prático. Uma projeção
               não é uma promessa.

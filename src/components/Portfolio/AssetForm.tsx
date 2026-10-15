@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ASSET_RETURN_RATES } from '../../core/assetReturnRates'
+import { remainingInstallments, yearMonthOf } from '../../core/installments'
 import { validateAssetForm, type AssetFormInput, type AssetFormMode, type AssetFormErrors } from '../../hooks/usePortfolio'
 import type { AssetWithId } from '../../types/asset'
 import CurrencyInput from '../Common/CurrencyInput'
@@ -39,14 +40,33 @@ export default function AssetForm({
     currentValue: seedDefaultValue ?? initialValue?.currentValue ?? 0,
     expectedReturnRatePercent: initialValue ? initialValue.expectedReturnRate * 100 : 0,
     instrumentKey: undefined,
+    monthlyContribution: initialValue?.monthlyContribution ?? 0,
   })
+
+  // Parcelas em texto: um input numérico controlado descarta o que o usuário digita no meio da edição.
+  // Vazio = sem prazo. Aporte já encerrado (0 parcelas) volta vazio — o usuário decide se renova.
+  const [installmentsDraft, setInstallmentsDraft] = useState(() => {
+    if (!initialValue?.contributionEndsAt) return ''
+    const remaining = remainingInstallments(initialValue.contributionEndsAt, yearMonthOf(new Date()))
+    return remaining > 0 ? String(remaining) : ''
+  })
+  const contributionEnded =
+    initialValue?.contributionEndsAt !== undefined &&
+    remainingInstallments(initialValue.contributionEndsAt, yearMonthOf(new Date())) === 0
 
   const [errors, setErrors] = useState<AssetFormErrors>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const stepErrors = validateAssetForm(input, mode)
+    const hasContribution = (input.monthlyContribution ?? 0) > 0
+    const trimmedInstallments = installmentsDraft.trim()
+    const submitted: AssetFormInput = {
+      ...input,
+      remainingInstallments: hasContribution && trimmedInstallments !== '' ? Number(trimmedInstallments) : null,
+    }
+
+    const stepErrors = validateAssetForm(submitted, mode)
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
       return
@@ -54,8 +74,8 @@ export default function AssetForm({
 
     try {
       await onSubmit({
-        ...input,
-        expectedReturnRate: input.expectedReturnRatePercent / 100,
+        ...submitted,
+        expectedReturnRate: submitted.expectedReturnRatePercent / 100,
       })
     } catch {
       // erro já foi tratado no parent
@@ -127,7 +147,11 @@ export default function AssetForm({
         </div>
       ) : null}
 
-      <FormField label="Valor atual" error={errors.currentValue}>
+      <FormField
+        label="Valor atual"
+        error={errors.currentValue}
+        hint="Pode ser R$ 0,00 se o ativo acabou de ser contratado e tem aporte mensal programado."
+      >
         {(fieldProps) => (
           <CurrencyInput
             value={input.currentValue}
@@ -158,6 +182,57 @@ export default function AssetForm({
           />
         )}
       </FormField>
+
+      <fieldset className="space-y-3 rounded border border-gray-200 p-3">
+        <legend className="px-1 text-sm font-medium">Aporte mensal programado (opcional)</legend>
+        <p className="text-xs text-gray-600">
+          Para ativos em que você já se comprometeu a colocar um valor todo mês (consórcio, previdência, CDB
+          programado). Esse valor sai da sua fatia de Investimentos e rende à taxa deste ativo.
+        </p>
+
+        <FormField label="Aporte mensal (R$)" error={errors.monthlyContribution}>
+          {(fieldProps) => (
+            <CurrencyInput
+              value={input.monthlyContribution ?? 0}
+              onChange={(value) => {
+                setInput((prev) => ({ ...prev, monthlyContribution: value }))
+                setErrors((prev) => ({ ...prev, monthlyContribution: undefined, currentValue: undefined }))
+              }}
+              {...fieldProps}
+            />
+          )}
+        </FormField>
+
+        {(input.monthlyContribution ?? 0) > 0 && (
+          <FormField
+            label="Parcelas restantes"
+            error={errors.remainingInstallments}
+            hint="Conte o mês atual. Deixe vazio se o aporte não tem data para terminar."
+          >
+            {(fieldProps) => (
+              <input
+                type="text"
+                inputMode="numeric"
+                value={installmentsDraft}
+                onChange={(e) => {
+                  setInstallmentsDraft(e.target.value)
+                  setErrors((prev) => ({ ...prev, remainingInstallments: undefined }))
+                }}
+                placeholder="Ex: 60"
+                className="input-field"
+                {...fieldProps}
+              />
+            )}
+          </FormField>
+        )}
+
+        {contributionEnded && (input.monthlyContribution ?? 0) > 0 && installmentsDraft === '' && (
+          <p className="text-xs text-amber-700">
+            O prazo anterior deste aporte já terminou. Informe as parcelas que ainda faltam para reativá-lo, ou deixe
+            vazio para tratá-lo como permanente.
+          </p>
+        )}
+      </fieldset>
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" disabled={isSubmitting} className="flex-1">

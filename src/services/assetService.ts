@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDocs,
   addDoc,
@@ -15,6 +16,15 @@ function assetsCollectionRef(uid: string) {
 
 function assetDocRef(uid: string, assetId: string) {
   return doc(db, 'users', uid, 'assets', assetId)
+}
+
+// Campos opcionais do aporte programado: na edição, `null` remove o campo do documento (o Firestore não
+// aceita `undefined`), e ausente deixa como está.
+export type AssetUpdate = Partial<
+  Omit<Asset, 'status' | 'createdAt' | 'updatedAt' | 'monthlyContribution' | 'contributionEndsAt'>
+> & {
+  monthlyContribution?: number | null
+  contributionEndsAt?: string | null
 }
 
 export async function getAssets(uid: string): Promise<AssetWithId[]> {
@@ -38,13 +48,17 @@ export async function addAsset(
   return docRef.id
 }
 
-export async function updateAsset(
-  uid: string,
-  assetId: string,
-  data: Partial<Omit<Asset, 'status' | 'createdAt'>>
-): Promise<void> {
+export async function updateAsset(uid: string, assetId: string, data: AssetUpdate): Promise<void> {
+  const { monthlyContribution, contributionEndsAt, ...rest } = data
+
   await updateDoc(assetDocRef(uid, assetId), {
-    ...data,
+    ...rest,
+    ...(monthlyContribution === undefined
+      ? {}
+      : { monthlyContribution: monthlyContribution === null ? deleteField() : monthlyContribution }),
+    ...(contributionEndsAt === undefined
+      ? {}
+      : { contributionEndsAt: contributionEndsAt === null ? deleteField() : contributionEndsAt }),
     updatedAt: serverTimestamp(),
   })
 }
