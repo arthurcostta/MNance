@@ -1431,7 +1431,8 @@ velocidade de crescimento e o card de Distribuição Ativa refletem a renda nova
 **Categoria:** Interação
 **Pré-condições:** Dois pagamentos configurados como R$ 3.000 / R$ 1.900 (share ≈ 61,2%).
 **Passos:**
-1. Voltar a `/onboarding` e mudar a renda mensal líquida para R$ 5.880 (20% a mais). Salvar.
+1. Em Conta → "Editar onboarding" (abre na revisão), tocar em **Alterar** no bloco "Renda e custos", mudar a
+   renda mensal líquida para R$ 5.880 (20% a mais) → "Voltar à revisão" → "Atualizar".
 2. Abrir `/distribution` e conferir os dois campos em R$.
 
 **Resultado esperado:** O **percentual** é o que persiste, não os R$: os campos passam a
@@ -1465,7 +1466,7 @@ resolve completamente, (c) o app não fica travado em "Salvando...".
 **Categoria:** Edge case
 **Pré-condições:** Distribuição salva com `payday2Split` e `payday1IncomeSharePercent`.
 **Passos:**
-1. Voltar a `/onboarding` e apagar o 2º dia de pagamento. Salvar.
+1. Em Conta → "Editar onboarding", **Alterar** no bloco "Dias de pagamento", apagar o 2º dia → "Voltar à revisão" → "Atualizar".
 2. Abrir `/distribution`.
 3. Conferir `distribution/current` no console do Firebase.
 
@@ -1937,7 +1938,7 @@ antes dessa leitura terminar.
 **Pré-condições:** Distribuição personalizada salva (ex.: 2 objetivos "Aposentadoria" 40% e
 "Casa + Carro 2031" 60%, salário por pagamento, % diferentes do padrão).
 **Passos:**
-1. Abrir `/onboarding`, avançar até o passo 5 sem mudar nada e clicar "Atualizar".
+1. Abrir `/onboarding` (já abre na revisão, "Seus dados") e clicar "Atualizar" sem mudar nada.
 2. Abrir `/distribution` e conferir os campos (valores dos inputs, não só o texto da página).
 
 **Resultado esperado:** Objetivos, percentuais por pagamento e demais escolhas continuam iguais.
@@ -2253,6 +2254,42 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 21. Editar o onboarding sem repetir perguntas `[M5.8 Fase 2b]`
+
+### CENÁRIO 145: Editar só a meta, sem responder tudo de novo `[M5.8]`
+
+**Categoria:** Happy path
+**Pré-condições:** Onboarding concluído; inflação do Radar em um valor diferente do padrão (ex.: 0%).
+**Passos:** 1. Conta → "Editar onboarding". 2. Tocar em **Alterar** no bloco "Meta", mudar a meta de patrimônio → "Voltar à revisão" → "Atualizar".
+**Resultado esperado:** A tela abre **direto na revisão** ("Seus dados"), com meta, patrimônio, renda, custo e dias já preenchidos e quatro botões "Alterar" (Meta, Patrimônio, Renda e custos, Dias de pagamento); nenhum campo é perguntado de novo. O texto da distribuição diz que ela não muda ali (não mostra o "55/10/10/25 ponto de partida"). Depois de "Atualizar" o app cai no Radar com o novo "Tempo até a Meta".
+
+### CENÁRIO 146: Valor inválido em um bloco impede voltar à revisão `[M5.8]`
+
+**Categoria:** Validação
+**Passos:** 1. Editar onboarding → Alterar "Meta" → zerar a meta → "Voltar à revisão".
+**Resultado esperado:** Continua no bloco, com "A meta precisa ser maior que zero."; nada é gravado. O mesmo vale para custo essencial maior que a renda e dias de pagamento iguais.
+
+### CENÁRIO 147: Cancelar `[M5.8]`
+
+**Categoria:** Interação
+**Passos:** 1. Editar onboarding e tocar em "Cancelar" sem mexer em nada. 2. Repetir alterando a meta, voltar à revisão e tocar em "Cancelar": recusar o aviso, depois aceitar. 3. Reabrir `/onboarding`.
+**Resultado esperado:** Sem alterações: vai direto para `/account`, sem aviso. Com alterações: "Descartar as alterações do onboarding?" — recusar mantém na tela; aceitar vai para `/account`. A meta gravada continua a de antes (nada foi salvo). "Cancelar" aparece na revisão e nos blocos abertos, em desktop e mobile.
+
+### CENÁRIO 148: Reeditar o onboarding preserva campos que não são dele `[regressão]`
+
+**Categoria:** Persistência
+**Pré-condições:** Inflação do Radar salva em 0% (campo `inflationRate`, editado no painel de premissas).
+**Passos:** 1. Editar onboarding → "Atualizar" (com ou sem alterações). 2. Voltar ao Radar.
+**Resultado esperado:** A inflação continua 0,0% — o onboarding só sobrescreve os campos dele. (Antes da correção, `setUserDocument` usava `setDoc` sem `merge` e a inflação voltava a 4,5%; `portfolioSeedDismissed` e os campos futuros de lembrete seriam apagados do mesmo jeito.)
+
+### CENÁRIO 149: Conta nova continua no assistente de 5 passos `[regressão]`
+
+**Categoria:** Happy path
+**Pré-condições:** Conta recém-criada, sem onboarding.
+**Resultado esperado:** Título "Completar seu onboarding", pontinhos de progresso, rodapé "Voltar / Próximo", **sem** botão "Cancelar" (não há para onde voltar). A revisão mostra o resumo único e o preview 55/10/10/25, sem botões "Alterar", e termina em "Confirmar e Salvar". Salvar leva ao Radar; reabrir `/onboarding` depois já cai no modo edição. O passo do patrimônio explica que, com ativos cadastrados, o Radar usa o total do Portfólio.
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
@@ -2262,3 +2299,4 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 | 07/10/2026 | M5.8 Fase 1 (Distribuição enxuta + destino do saldo, não commitada) | 121–130 no navegador automatizado (mobile 390px e desktop 1280px) com a conta `qa.rafael` (documento antigo, ainda com `investmentBuckets`) e uma conta nova | 0 | Passaram todos: Nível 2 e "Retorno esperado" sumiram; estado pendente com botão desabilitado; "Investir tudo" → R$ 2.878,80, persistido após recarregar e refletido no Radar; Dividir 70/30 → R$ 1.003,49 + R$ 430,06 (soma exata) e aporte R$ 2.448,74; Cancelar preserva a regra; "Usar em lazer" → R$ 1.445,25; despesa de R$ 2.000 → aviso de estouro de R$ 566,45 sem roteamento; conta nova sem lista → dica, sem "Decisão pendente", aporte R$ 1.000,00. `tsc` 0 erros, 186 testes (17 arquivos), `oxlint` exit 0. Seção 14 (cenários 91–103, Nível 2) marcada como superada. **Ainda abertos:** 116–119 (Fases 2–3). Segunda conta de teste criada: `qa.sem-lista.*@mnance-teste.dev`. |
 | 07/10/2026 | M5.8 Fase 3b (Radar realista, não commitada) | 131–135, 137 + 116, 117 e 119 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael` e `qa.sem-lista` | 0 | Card, alerta, alavancas e gráfico coerentes (~45a4m; no prazo R$ 1,2 mi = 24,5% da meta; aporte necessário R$ 6.725/mês, conservador R$ 9.095); inflação 4,5% → 0% muda o Radar sem F5 (~30a7m) e `4.5` agora é aceito; painel sem "0,1%/0,0%"; conta sem ativos usa 8,7% nominal / 4,0% real. Bitcoin: coberto por teste unitário (`portfolioProjection.test.ts`), **não** executado no navegador. `tsc` 0 erros, 197 testes (17 arquivos), build ok. **Fecham:** 116, 117, 119. |
 | 07/10/2026 | M5.8 Fase 2 (aporte programado por ativo, não commitada) | 138–142 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael`; números conferidos contra `check-fase2.mjs` (script independente) | 0 | Validação de saldo 0; consórcio R$ 1.500 × 60 parcelas (restam 60 até 09/2031; edição para 38 → até 11/2029; zerar o aporte limpa a linha e o card). Plano R$ 1.445,25: ~49a1m, R$ 937.009 no prazo, aviso de falta de R$ 54,75 (≈ 0,9 p.p.). "Investir tudo": ~38a3m, R$ 1.922.418, +20% → 36a10m. Dados de teste desfeitos (consórcios arquivados; regra do saldo de volta a "Usar em lazer"). 143 e 144 só por testes unitários; o Firestore foi conferido só pela interface. `tsc` 0 erros, 236 testes (19 arquivos), build ok. **Achado:** a Distribuição não tem o cartão "bate sua meta" prevista na Fase 3. |
+| 16/10/2026 | M5.8 Fase 2b (editar onboarding, não commitada) | 145–149 + 87/89/114 atualizados, no navegador automatizado (desktop 1280px e mobile 390px) com `qa.rafael` e uma conta descartável `qa.novo.*` (script `sim11-onboarding-edit.mjs` e `sim12-new-user-onboarding.mjs`) | 0 | **148 reproduzido antes do fix:** sem `merge`, "Atualizar" no onboarding trocou a inflação de 0,0% para 4,5%; com `merge: true` ela permanece 0,0%. Edição abre na revisão (4 botões "Alterar", sem inputs), meta inválida bloqueia "Voltar à revisão", mudar a meta de R$ 5 mi para R$ 2 mi leva o Radar de ~45a4m para ~22a4m, "Cancelar" sem alterações sai direto e com alterações pede confirmação (recusar mantém; aceitar não grava). Conta nova: 5 passos, pontinhos, sem "Cancelar", revisão com preview 55/10/10/25. `tsc` 0 erros, 248 testes (20 arquivos), `oxlint` só warnings antigos, `npm run build` ok. Meta e inflação da conta de teste restauradas (R$ 5 mi / 4,5%). Console limpo. |

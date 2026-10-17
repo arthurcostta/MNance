@@ -36,8 +36,9 @@ const INITIAL_DATA: OnboardingData = {
 }
 
 export const TOTAL_STEPS = 5
+export const REVIEW_STEP = TOTAL_STEPS
 
-// Função pura, testável isoladamente — cada step valida só os campos que expõe.
+// Função pura, testável isoladamente — valida um passo específico.
 export function validateStep(step: number, data: OnboardingData): ValidationErrors {
   const errors: ValidationErrors = {}
 
@@ -82,8 +83,43 @@ export function validateStep(step: number, data: OnboardingData): ValidationErro
   return errors
 }
 
+// Junta os erros dos passos de preenchimento (1–4); a revisão (passo 5) não tem campos.
+export function validateAll(data: OnboardingData): ValidationErrors {
+  const errors: ValidationErrors = {}
+  for (let step = 1; step < REVIEW_STEP; step++) {
+    Object.assign(errors, validateStep(step, data))
+  }
+  return errors
+}
+
+// Primeiro passo (1–4) com erro, ou null se tudo é válido. Usado para levar o usuário
+// ao bloco certo quando um documento antigo/incompleto não passa na validação ao salvar.
+export function firstInvalidStep(data: OnboardingData): number | null {
+  for (let step = 1; step < REVIEW_STEP; step++) {
+    if (Object.keys(validateStep(step, data)).length > 0) return step
+  }
+  return null
+}
+
+// `darkMode` fica de fora de propósito: não é editável aqui, então nunca conta como alteração.
+export function isOnboardingDirty(initial: OnboardingData, current: OnboardingData): boolean {
+  return (
+    initial.name !== current.name ||
+    initial.goalAmount !== current.goalAmount ||
+    initial.goalYears !== current.goalYears ||
+    initial.riskProfile !== current.riskProfile ||
+    initial.currentPatrimony !== current.currentPatrimony ||
+    initial.monthlyIncomeNet !== current.monthlyIncomeNet ||
+    initial.essentialMonthlyCost !== current.essentialMonthlyCost ||
+    initial.payday1 !== current.payday1 ||
+    initial.payday2 !== current.payday2
+  )
+}
+
 export function useOnboarding(uid: string | undefined) {
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA)
+  // Foto dos dados como vieram do Firestore (só em edição) — base do "Cancelar" com confirmação.
+  const [initialData, setInitialData] = useState<OnboardingData | null>(null)
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [currentStep, setCurrentStep] = useState(1)
   const [isEditing, setIsEditing] = useState(false)
@@ -98,8 +134,7 @@ export function useOnboarding(uid: string | undefined) {
     getUserDocument(uid).then((existing) => {
       if (cancelled) return
       if (existing) {
-        setIsEditing(true)
-        setData({
+        const loaded: OnboardingData = {
           name: existing.name,
           goalAmount: existing.goalAmount,
           goalYears: existing.goalYears,
@@ -110,7 +145,13 @@ export function useOnboarding(uid: string | undefined) {
           payday1: existing.payday1,
           payday2: existing.payday2,
           darkMode: existing.darkMode,
-        })
+        }
+        setIsEditing(true)
+        setData(loaded)
+        setInitialData(loaded)
+        // Quem já tem cadastro não precisa responder tudo de novo: abre na revisão, com os
+        // dados atuais, e escolhe qual bloco alterar.
+        setCurrentStep(REVIEW_STEP)
       }
       setLoadingInitial(false)
     })
@@ -155,8 +196,26 @@ export function useOnboarding(uid: string | undefined) {
     setCurrentStep(step)
   }, [])
 
+  // Termina a edição de um bloco aberto a partir da revisão: só volta se o bloco estiver válido.
+  const finishStepEdit = useCallback(() => {
+    if (!validateCurrentStep()) return false
+    setCurrentStep(REVIEW_STEP)
+    return true
+  }, [validateCurrentStep])
+
+  const isDirty = isEditing && initialData !== null && isOnboardingDirty(initialData, data)
+
   const save = useCallback(
     async (uidToSave: string, email: string) => {
+      // Defesa contra documento antigo/incompleto: se algo não passa, leva ao bloco com erro
+      // em vez de gravar dado inválido.
+      const invalidStep = firstInvalidStep(data)
+      if (invalidStep !== null) {
+        setErrors(validateAll(data))
+        setCurrentStep(invalidStep)
+        return false
+      }
+
       await setUserDocument(uidToSave, {
         name: data.name,
         email,
@@ -174,6 +233,7 @@ export function useOnboarding(uid: string | undefined) {
         onboardingCompletedAt: Timestamp.now(),
       })
       await ensureDistribution(uidToSave, data.payday2 !== null)
+      return true
     },
     [data, emergencyReserve]
   )
@@ -183,6 +243,7 @@ export function useOnboarding(uid: string | undefined) {
     errors,
     currentStep,
     isEditing,
+    isDirty,
     loadingInitial,
     emergencyReserve,
     defaultDistribution,
@@ -190,6 +251,7 @@ export function useOnboarding(uid: string | undefined) {
     nextStep,
     prevStep,
     goToStep,
+    finishStepEdit,
     save,
   }
 }

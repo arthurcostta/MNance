@@ -13,7 +13,11 @@ export default function Step2Patrimony({ data, errors, onUpdateField }: Step2Pat
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Seu patrimônio atual</h2>
 
-      <FormField label="Patrimônio atual" error={errors.currentPatrimony}>
+      <FormField
+        label="Patrimônio atual"
+        error={errors.currentPatrimony}
+        hint="Com ativos cadastrados, o Radar usa o total do Portfólio; este valor é o ponto de partida enquanto não houver ativos."
+      >
         {(fieldProps) => (
           <CurrencyInput
             value={data.currentPatrimony}

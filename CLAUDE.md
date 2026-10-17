@@ -454,7 +454,7 @@ em `b4d8faf` e a 3b em `07be729`).** **Substitui a decisão #1 do M4** (aporte =
   (`cenarios-de-teste.md` §19); o 136 (teto de Bitcoin) só por teste unitário. **Armadilha de QA:** `page.screenshot({ fullPage: true })` redimensiona a janela e reinicia a
   animação do Chart.js — o gráfico sai em branco; para conferir o gráfico use screenshot do `<canvas>` depois de ~2 s.
 
-**M5.8 · Fase 2 — Aporte programado por ativo (consórcio e similares): implementada, ainda sem commit.** O aporte
+**M5.8 · Fase 2 — Aporte programado por ativo (consórcio e similares): implementada, commitada e em produção.** O aporte
 programado é **atributo do ativo** (cadastrado no Portfólio), não uma seção da Distribuição.
 - **Dados:** `Asset.monthlyContribution?` (R$/mês, valores de hoje) e `Asset.contributionEndsAt?` (`'YYYY-MM'`, último mês
   de aporte; ausente = permanente). Guarda-se o **mês final**, não um contador: `core/installments.ts`
@@ -485,6 +485,31 @@ programado é **atributo do ativo** (cadastrado no Portfólio), não uma seção
   pela interface (recarregar e reabrir a edição), não no console.
 - **Lacuna conhecida (herdada da Fase 3):** a tela de Distribuição ainda **não** tem o cartão "no ritmo planejado você chega à
   meta em X (prazo: Y anos)" que o plano da Fase 3 previa; só o Radar mostra o prazo.
+
+**M5.8 · Fase 2b — Editar o onboarding sem repetir perguntas: implementada, ainda sem commit.** Pedido do usuário ao tentar só
+mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refazia os 5 passos e não tinha saída.
+- **Edição abre na revisão.** `useOnboarding` já pré-preenchia os campos; agora, com documento existente, `currentStep` começa em
+  `REVIEW_STEP` e a revisão ("Seus dados") ganhou um botão **Alterar** por bloco (Meta, Patrimônio, Renda e custos, Dias de
+  pagamento) que abre os `Step1…Step4` sem mudá-los; "Voltar à revisão" (`finishStepEdit`) só volta se o bloco for válido;
+  "Atualizar" grava. `goToStep`, que existia sem uso, passou a ser usado. **Conta nova continua no assistente de 5 passos** (sem
+  "Cancelar", revisão com o preview 55/10/10/25 e sem botões Alterar).
+- **"Cancelar"** (só em edição, na revisão e nos blocos abertos): vai para `/account`; se `isDirty` (`isOnboardingDirty`, compara com
+  o snapshot carregado; `darkMode` fica de fora), pede `window.confirm` antes de descartar.
+- **Bug corrigido (perda de dados):** `userService.setUserDocument` usava `setDoc` **sem `merge`**, então toda reedição substituía
+  `users/{uid}` só pelos campos do onboarding e apagava `inflationRate` (a inflação editada no Radar voltava a 4,5%) e
+  `portfolioSeedDismissed` — e apagaria `investmentDay`/`reminderEnabled` do M5.9/M5.10. Agora `{ merge: true }`. Reproduzido antes do
+  fix no navegador (0,0% → 4,5%). **Regra:** o onboarding só pode gravar campos dele; qualquer campo novo em `User` fora do
+  onboarding depende desse `merge`.
+- `save` valida tudo (`validateAll`/`firstInvalidStep`) e, se um documento antigo vier incompleto, leva ao bloco com erro em vez
+  de gravar; devolve `false` nesse caso (o formulário não navega). Na revisão em edição o cartão da distribuição vira uma nota
+  ("não muda por aqui"), porque o preview do padrão enganava — `ensureDistribution` nunca sobrescreve a Distribuição salva. O passo
+  do patrimônio ganhou a dica de que, com ativos, o Radar usa o total do Portfólio (`currentPatrimony` só vale como estimativa).
+- `npm test`: **248 testes, 20 arquivos** (novo `useOnboarding.test.ts`: `validateStep` dos 4 passos, que não tinha cobertura,
+  `validateAll`/`firstInvalidStep`, `isOnboardingDirty`); `tsc -b`, `oxlint` (só warnings antigos) e build sem erro. Verificado no
+  navegador (desktop 1280px e mobile 390px, conta `qa.rafael` + uma conta descartável `qa.novo.*`): cenários 145–149 em
+  `cenarios-de-teste.md` §21 (87, 89 e 114 ajustados ao novo caminho). O `merge` só é verificável no navegador — não há teste
+  unitário (sem mock de Firebase, decisão do projeto).
+- **Fora de escopo:** "e se a meta fosse outra?" sem salvar é o Simulador de Cenários (M6); hoje só dá para salvar e voltar.
 
 **Próximo:** M5.9 (tela Investimentos com check-in mensal — os fluxos já recebem `monthlyAmount`, então a aderência entra como
 um fator) e M5.10 (push gratuito via FCM + GitHub Actions). Monte Carlo (probabilidade de atingir a meta) é a evolução natural
