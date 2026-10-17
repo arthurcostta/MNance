@@ -504,8 +504,16 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
   de gravar; devolve `false` nesse caso (o formulário não navega). Na revisão em edição o cartão da distribuição vira uma nota
   ("não muda por aqui"), porque o preview do padrão enganava — `ensureDistribution` nunca sobrescreve a Distribuição salva. O passo
   do patrimônio ganhou a dica de que, com ativos, o Radar usa o total do Portfólio (`currentPatrimony` só vale como estimativa).
-- `npm test`: **248 testes, 20 arquivos** (novo `useOnboarding.test.ts`: `validateStep` dos 4 passos, que não tinha cobertura,
-  `validateAll`/`firstInvalidStep`, `isOnboardingDirty`); `tsc -b`, `oxlint` (só warnings antigos) e build sem erro. Verificado no
+- **Patrimônio atual = o do Radar (17/10/2026).** A edição mostrava `User.currentPatrimony` (o valor digitado no cadastro, ex.:
+  R$ 0), enquanto o card do Radar usa o **total dos ativos** do Portfólio — esse campo só vale como estimativa sem ativos.
+  `useOnboarding` agora compõe `usePortfolio` e inicializa **uma vez**, quando usuário e Portfólio carregaram
+  (`resolveCurrentPatrimony`: com ativos → total arredondado a centavos; sem → valor digitado). Com ativos, a revisão mostra
+  "Patrimônio atual (do Portfólio)" **sem "Alterar"** (não adianta editar: o Radar ignora o campo) e salvar grava o total no
+  documento. Sem ativos, nada muda. Cenários 150 e 151.
+- **Correção junto:** durante "Salvando…" a revisão trocava de layout (cartões por bloco → cartão único) porque `onEditStep` virava
+  `undefined`; agora o layout depende de `isEditing` e os botões só ficam `disabled` (`editDisabled`).
+- `npm test`: **252 testes, 20 arquivos** (novo `useOnboarding.test.ts`: `validateStep` dos 4 passos, que não tinha cobertura,
+  `validateAll`/`firstInvalidStep`, `isOnboardingDirty`, `resolveCurrentPatrimony`); `tsc -b`, `oxlint` (só warnings antigos) e build sem erro. Verificado no
   navegador (desktop 1280px e mobile 390px, conta `qa.rafael` + uma conta descartável `qa.novo.*`): cenários 145–149 em
   `cenarios-de-teste.md` §21 (87, 89 e 114 ajustados ao novo caminho). O `merge` só é verificável no navegador — não há teste
   unitário (sem mock de Firebase, decisão do projeto).

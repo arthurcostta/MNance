@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   firstInvalidStep,
   isOnboardingDirty,
+  resolveCurrentPatrimony,
   validateAll,
   validateStep,
   type OnboardingData,
@@ -97,5 +98,25 @@ describe('isOnboardingDirty', () => {
 
   it('darkMode não é editável aqui, então não conta', () => {
     expect(isOnboardingDirty(valid, { ...valid, darkMode: true })).toBe(false)
+  })
+})
+
+describe('resolveCurrentPatrimony', () => {
+  it('com ativos no Portfólio usa o total deles (igual ao card do Radar), não o valor digitado no onboarding', () => {
+    expect(resolveCurrentPatrimony(0, 3, 41_291)).toBe(41_291)
+    expect(resolveCurrentPatrimony(10_000, 1, 25_000)).toBe(25_000)
+  })
+
+  it('sem ativos mantém o valor do onboarding (estimativa do Radar)', () => {
+    expect(resolveCurrentPatrimony(10_000, 0, 0)).toBe(10_000)
+  })
+
+  it('arredonda a centavos (soma de ativos em ponto flutuante)', () => {
+    expect(resolveCurrentPatrimony(0, 2, 0.1 + 0.2)).toBe(0.3)
+    expect(resolveCurrentPatrimony(0, 2, 1234.5678)).toBe(1234.57)
+  })
+
+  it('ativos que somam zero (ex.: consórcio recém-contratado) valem zero, como no Radar', () => {
+    expect(resolveCurrentPatrimony(41_291, 1, 0)).toBe(0)
   })
 })

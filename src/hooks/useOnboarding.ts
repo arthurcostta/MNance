@@ -3,7 +3,8 @@ import { Timestamp } from 'firebase/firestore'
 import { calculateEmergencyReserve } from '../core/emergencyReserve'
 import { getUserDocument, setUserDocument } from '../services/userService'
 import { ensureDistribution, getDefaultDistribution } from '../services/distributionService'
-import type { RiskProfile } from '../types/user'
+import { usePortfolio } from './usePortfolio'
+import type { RiskProfile, User } from '../types/user'
 
 export interface OnboardingData {
   name: string
@@ -116,49 +117,79 @@ export function isOnboardingDirty(initial: OnboardingData, current: OnboardingDa
   )
 }
 
+// Com ativos ativos no Portfólio o patrimônio é o total deles — o mesmo número do card do Radar
+// (`useProjection`). O valor digitado no onboarding (`User.currentPatrimony`) só vale como
+// estimativa enquanto não há ativos; sem isso a edição mostraria o valor velho (ex.: R$ 0).
+export function resolveCurrentPatrimony(
+  storedValue: number,
+  assetCount: number,
+  portfolioTotal: number
+): number {
+  return assetCount > 0 ? Math.round(portfolioTotal * 100) / 100 : storedValue
+}
+
 export function useOnboarding(uid: string | undefined) {
+  const portfolio = usePortfolio(uid)
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA)
   // Foto dos dados como vieram do Firestore (só em edição) — base do "Cancelar" com confirmação.
   const [initialData, setInitialData] = useState<OnboardingData | null>(null)
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [currentStep, setCurrentStep] = useState(1)
   const [isEditing, setIsEditing] = useState(false)
-  const [loadingInitial, setLoadingInitial] = useState(true)
+  const [existingUser, setExistingUser] = useState<User | null>(null)
+  const [userLoaded, setUserLoaded] = useState(false)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!uid) {
-      setLoadingInitial(false)
+      setUserLoaded(true)
       return
     }
     let cancelled = false
     getUserDocument(uid).then((existing) => {
       if (cancelled) return
-      if (existing) {
-        const loaded: OnboardingData = {
-          name: existing.name,
-          goalAmount: existing.goalAmount,
-          goalYears: existing.goalYears,
-          riskProfile: existing.riskProfile,
-          currentPatrimony: existing.currentPatrimony,
-          monthlyIncomeNet: existing.monthlyIncomeNet,
-          essentialMonthlyCost: existing.essentialMonthlyCost,
-          payday1: existing.payday1,
-          payday2: existing.payday2,
-          darkMode: existing.darkMode,
-        }
-        setIsEditing(true)
-        setData(loaded)
-        setInitialData(loaded)
-        // Quem já tem cadastro não precisa responder tudo de novo: abre na revisão, com os
-        // dados atuais, e escolhe qual bloco alterar.
-        setCurrentStep(REVIEW_STEP)
-      }
-      setLoadingInitial(false)
+      setExistingUser(existing)
+      setUserLoaded(true)
     })
     return () => {
       cancelled = true
     }
   }, [uid])
+
+  // Inicializa uma única vez, quando o usuário e o Portfólio já carregaram: o patrimônio
+  // exibido depende dos dois, e inicializar antes mostraria o valor velho por um instante.
+  useEffect(() => {
+    if (ready || !userLoaded || portfolio.loadingInitial) return
+    if (existingUser) {
+      const loaded: OnboardingData = {
+        name: existingUser.name,
+        goalAmount: existingUser.goalAmount,
+        goalYears: existingUser.goalYears,
+        riskProfile: existingUser.riskProfile,
+        currentPatrimony: resolveCurrentPatrimony(
+          existingUser.currentPatrimony,
+          portfolio.assets.length,
+          portfolio.totalValue
+        ),
+        monthlyIncomeNet: existingUser.monthlyIncomeNet,
+        essentialMonthlyCost: existingUser.essentialMonthlyCost,
+        payday1: existingUser.payday1,
+        payday2: existingUser.payday2,
+        darkMode: existingUser.darkMode,
+      }
+      setIsEditing(true)
+      setData(loaded)
+      setInitialData(loaded)
+      // Quem já tem cadastro não precisa responder tudo de novo: abre na revisão, com os
+      // dados atuais, e escolhe qual bloco alterar.
+      setCurrentStep(REVIEW_STEP)
+    }
+    setReady(true)
+  }, [ready, userLoaded, existingUser, portfolio.loadingInitial, portfolio.assets.length, portfolio.totalValue])
+
+  const loadingInitial = !ready
+  // Em edição com ativos cadastrados o patrimônio vem do Portfólio e não é editável aqui.
+  const patrimonyFromPortfolio = isEditing && portfolio.assets.length > 0
 
   const emergencyReserve = calculateEmergencyReserve({
     monthlyIncomeNet: data.monthlyIncomeNet,
@@ -245,6 +276,7 @@ export function useOnboarding(uid: string | undefined) {
     isEditing,
     isDirty,
     loadingInitial,
+    patrimonyFromPortfolio,
     emergencyReserve,
     defaultDistribution,
     updateField,

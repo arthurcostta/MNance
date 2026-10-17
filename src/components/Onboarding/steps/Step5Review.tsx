@@ -9,8 +9,12 @@ interface Step5ReviewProps {
   emergencyReserve: EmergencyReserveResult
   defaultDistribution: Omit<Distribution, 'updatedAt'>
   isEditing: boolean
+  // Em edição com ativos no Portfólio, o patrimônio é a soma deles e não tem "Alterar".
+  patrimonyFromPortfolio: boolean
   // Presente só na edição: cada bloco ganha um "Alterar" que abre os campos daquele passo.
   onEditStep?: (step: number) => void
+  // Mantém o layout e os botões, mas inertes (ex.: enquanto salva).
+  editDisabled?: boolean
 }
 
 const RISK_PROFILE_LABELS: Record<OnboardingData['riskProfile'], string> = {
@@ -37,28 +41,38 @@ function Row({ label, value }: { label: string; value: string }) {
 function Block({
   title,
   step,
+  grouped,
   onEditStep,
+  disabled = false,
+  locked = false,
   children,
 }: {
   title: string
   step: number
+  grouped: boolean
   onEditStep?: (step: number) => void
+  disabled?: boolean
+  // Bloco que não se edita aqui (ex.: patrimônio vindo do Portfólio): mantém o cartão, sem "Alterar".
+  locked?: boolean
   children: ReactNode
 }) {
-  if (!onEditStep) return <>{children}</>
+  if (!grouped) return <>{children}</>
 
   return (
     <Card>
       <div className="mb-1 flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-600">{title}</p>
-        <button
-          type="button"
-          onClick={() => onEditStep(step)}
-          aria-label={`Alterar ${title.toLowerCase()}`}
-          className="text-sm font-medium underline"
-        >
-          Alterar
-        </button>
+        {!locked && onEditStep && (
+          <button
+            type="button"
+            onClick={() => onEditStep(step)}
+            disabled={disabled}
+            aria-label={`Alterar ${title.toLowerCase()}`}
+            className="text-sm font-medium underline disabled:cursor-not-allowed disabled:text-gray-400"
+          >
+            Alterar
+          </button>
+        )}
       </div>
       {children}
     </Card>
@@ -84,29 +98,42 @@ export default function Step5Review({
   emergencyReserve,
   defaultDistribution,
   isEditing,
+  patrimonyFromPortfolio,
   onEditStep,
+  editDisabled = false,
 }: Step5ReviewProps) {
+  const blockProps = { grouped: isEditing, onEditStep, disabled: editDisabled }
+
   const blocks = (
     <>
-      <Block title="Meta" step={1} onEditStep={onEditStep}>
+      <Block title="Meta" step={1} {...blockProps}>
         <Row label="Nome" value={data.name} />
         <Row label="Meta de patrimônio" value={formatCurrency(data.goalAmount)} />
         <Row label="Prazo" value={`${data.goalYears} anos`} />
         <Row label="Perfil de risco" value={RISK_PROFILE_LABELS[data.riskProfile]} />
       </Block>
 
-      <Block title="Patrimônio" step={2} onEditStep={onEditStep}>
-        <Row label="Patrimônio atual" value={formatCurrency(data.currentPatrimony)} />
+      <Block title="Patrimônio" step={2} {...blockProps} locked={patrimonyFromPortfolio}>
+        <Row
+          label={patrimonyFromPortfolio ? 'Patrimônio atual (do Portfólio)' : 'Patrimônio atual'}
+          value={formatCurrency(data.currentPatrimony)}
+        />
+        {patrimonyFromPortfolio && (
+          <p className="pb-1 text-xs text-gray-500">
+            Soma dos ativos cadastrados no Portfólio — o mesmo valor do card do Radar. Para mudar,
+            atualize seus ativos no Portfólio.
+          </p>
+        )}
       </Block>
 
-      <Block title="Renda e custos" step={3} onEditStep={onEditStep}>
+      <Block title="Renda e custos" step={3} {...blockProps}>
         <Row label="Renda líquida mensal" value={formatCurrency(data.monthlyIncomeNet)} />
         <Row label="Custo essencial mensal" value={formatCurrency(data.essentialMonthlyCost)} />
         <Row label="Reserva mínima (6 meses)" value={formatCurrency(emergencyReserve.minimumReserve)} />
         <Row label="Reserva segura (12 meses)" value={formatCurrency(emergencyReserve.safeReserve)} />
       </Block>
 
-      <Block title="Dias de pagamento" step={4} onEditStep={onEditStep}>
+      <Block title="Dias de pagamento" step={4} {...blockProps}>
         <Row label="Dia de pagamento" value={String(data.payday1)} />
         <Row label="Segundo dia de pagamento" value={data.payday2 ? String(data.payday2) : '—'} />
       </Block>
@@ -117,7 +144,7 @@ export default function Step5Review({
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">{isEditing ? 'Seus dados' : 'Revisão'}</h2>
 
-      {onEditStep ? blocks : <Card>{blocks}</Card>}
+      {isEditing ? blocks : <Card>{blocks}</Card>}
 
       {isEditing ? (
         <Card className="bg-gray-50 text-sm">

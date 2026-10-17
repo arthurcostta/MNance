@@ -130,7 +130,9 @@ export default function OnboardingForm() {
           emergencyReserve={onboarding.emergencyReserve}
           defaultDistribution={onboarding.defaultDistribution}
           isEditing={isEditing}
-          onEditStep={isEditing && !saving ? onboarding.goToStep : undefined}
+          patrimonyFromPortfolio={onboarding.patrimonyFromPortfolio}
+          onEditStep={isEditing ? onboarding.goToStep : undefined}
+          editDisabled={saving}
         />
       )}
 
