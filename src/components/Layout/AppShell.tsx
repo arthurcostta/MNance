@@ -34,7 +34,9 @@ export default function AppShell() {
 
   return (
     <div className="min-h-svh sm:flex">
-      <aside className="hidden w-56 shrink-0 flex-col gap-1 border-r border-gray-200 bg-white p-4 sm:flex">
+      {/* sticky + h-svh: a sidebar acompanha a janela, então "Conta" e "Sair" ficam sempre visíveis
+          (antes ela tinha a altura da página inteira e o rodapé só aparecia ao rolar até o fim). */}
+      <aside className="hidden h-svh w-56 shrink-0 flex-col gap-1 self-start overflow-y-auto border-r border-gray-200 bg-white p-4 sm:sticky sm:top-0 sm:flex">
         <p className="mb-4 px-3 text-lg font-semibold">MNance</p>
         {PRIMARY_NAV.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'} className={sidebarLinkClass}>
