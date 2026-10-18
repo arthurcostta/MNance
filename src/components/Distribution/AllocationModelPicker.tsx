@@ -153,7 +153,7 @@ export default function AllocationModelPicker({
               {(fieldProps) => (
                 <input
                   type="number"
-                  step="0.1"
+                  step="any"
                   min="0"
                   max="100"
                   value={customValue[key]}

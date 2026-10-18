@@ -112,7 +112,7 @@ export default function NivelUmForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <h2 className="text-lg font-semibold">Divisão da renda</h2>
 
       {/* M5.6: Campo em R$ por pagamento */}
@@ -153,7 +153,7 @@ export default function NivelUmForm({
             {(fieldProps) => (
               <input
                 type="number"
-                step="0.1"
+                step="any"
                 min="0"
                 max="100"
                 value={incomeSharePercent}

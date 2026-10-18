@@ -462,3 +462,14 @@ describe('validatePaydayAmounts', () => {
     expect(errors.payday1Amount).toBeDefined()
   })
 })
+
+describe('valores reais por pagamento (% com muitas casas decimais)', () => {
+  it('R$ 3.315,00 + R$ 2.466,66 voltam exatos após % → R$, sem arredondar o %', () => {
+    const share = shareFromAmounts(3315, 2466.66)
+    const back = splitIncomeByShare(3315 + 2466.66, share)
+
+    expect(share).not.toBe(Math.round(share * 10) / 10)
+    expect(Math.abs(back.payday1Amount - 3315)).toBeLessThan(0.01)
+    expect(Math.abs(back.payday2Amount - 2466.66)).toBeLessThan(0.01)
+  })
+})

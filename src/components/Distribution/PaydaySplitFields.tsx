@@ -66,7 +66,7 @@ export default function PaydaySplitFields({
           {(fieldProps) => (
             <input
               type="number"
-              step="0.1"
+              step="any"
               min="0"
               max="100"
               value={value[key]}
