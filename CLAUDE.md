@@ -519,6 +519,37 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
   unitário (sem mock de Firebase, decisão do projeto).
 - **Fora de escopo:** "e se a meta fosse outra?" sem salvar é o Simulador de Cenários (M6); hoje só dá para salvar e voltar.
 
-**Próximo:** M5.9 (tela Investimentos com check-in mensal — os fluxos já recebem `monthlyAmount`, então a aderência entra como
-um fator) e M5.10 (push gratuito via FCM + GitHub Actions). Monte Carlo (probabilidade de atingir a meta) é a evolução natural
+**M5.9 · Tela Investimentos (check-in mensal): implementada, ainda sem commit (20/10/2026).** Plano em
+`C:\Users\arthu\.claude\plans\goal-ol-claude-tudo-glistening-hamster.md` (bloco "M5.9 · Tela Investimentos").
+- **Ciclo:** planejar (aporte do mês e dias de investir) → registrar (um check-in por dia de investir, com o valor de cada ativo) →
+  ver o efeito (fechamento "antes → depois" pelo mesmo motor do Radar) → aderência ajusta a projeção.
+- **Dados:** `User.investmentDays?: number[]` (até 2, 1–31; vazio = fim do mês) e `investmentDayPromptAnswered` (fora do onboarding,
+  preservado pelo `merge`). `users/{uid}/investmentCheckins/{YYYY-MM-slot}` (id determinístico: reenviar não duplica).
+- **Gravação atômica** (`services/checkinService.ts`, `runTransaction`): lê os ativos, cria o check-in, soma cada aporte ao
+  `currentValue` e cria ativos novos com id gerado antes. Se o check-in já existe, recusa. "Não investi" grava `skipped` sem tocar em
+  ativos. `firestore.rules` não mudou.
+- **Regras puras** (`core/`, sem Firebase): `businessDays.ts` (Páscoa, Carnaval, Sexta Santa, Corpus Christi, dia útil, dia 31, ajuste
+  que cruza o mês), `checkin.ts` (status com tolerância de R$ 1, aderência = média dos 3 últimos respondidos em [0, 150%], "não investi"
+  conta 0%, divisão do plano pelos dias, aporte guiado que soma o aporte). Testes: `businessDays.test.ts` e `checkin.test.ts`.
+- **Divisão do plano:** com 2 dias e 2 pagamentos, o 1º dia recebe a % do 1º pagamento; com 2 dias sem 2º pagamento, 50/50. O
+  mapeamento é pelo dia **na ordem salva** (1º dia ↔ 1º pagamento); se o usuário escolher dias que não correspondem aos salários, a
+  divisão continua valendo, mas por ordem. Parcelas programadas (consórcio) são pré-preenchidas só no 1º dia.
+- **Aderência na projeção:** `useProjection(plan, adherence)` escala o aporte planejado e os aportes programados juntos (a parte livre
+  acompanha). `buildProjectionMetrics` é a função pura usada pelo hook e pelo fechamento, então o "antes/depois" e o Radar não divergem.
+- **Bugs achados e corrigidos no QA:** o fechamento somava ativos **arquivados** (R$ 100 a mais que o Radar, e o aporte programado de um
+  consórcio arquivado distorcia a projeção); sem ativos, o "antes" usava 0 em vez da estimativa do onboarding. Agora seguem a mesma regra
+  do Radar (`patrimonyOf`, `activeOnly`).
+- **Navegação:** "Investimentos" entra no menu (desktop e barra inferior) e a rota `/investments`. O Radar mostra o banner
+  `InvestmentCheckinBanner` quando um dia já chegou e não foi respondido.
+- **Refresh do Portfólio:** `usePortfolio.refresh()` relê os ativos e devolve a lista (usado pelo fechamento).
+- **Limitações (escritas, não escondidas):** dias passados sem resposta não geram aviso no Radar (só o dia de hoje/último aberto);
+  não há desfazer nem edição de check-in confirmado (correção = ajustar o ativo no Portfólio); o Radar e a Distribuição ainda não
+  mostram a aderência separadamente (só o painel de premissas do Radar). Os check-ins de teste da conta `qa.rafael` ficaram gravados
+  (não há exclusão no app).
+- **Verificação:** `npm test` 301 testes (23 arquivos), `tsc -b`, lint sem erros, build ok. Navegador (desktop 1280 e mobile 390):
+  cenários 152–159 executados em `qa.rafael` e numa conta descartável (`qa.inv.*`); screenshots em `C:\Dev\mnance-qa\shots\`.
+  A conta de teste foi restaurada (R$ 41.291 de patrimônio, ativo de teste arquivado).
+
+**Próximo:** M5.10 (push gratuito via FCM + GitHub Actions, com os mesmos dias de investir e `event.waitUntil` no handler `push`).
+Antes disso, vale o aviso de dias passados sem resposta no Radar, se o usuário quiser. Monte Carlo (probabilidade de atingir a meta) é a evolução natural
 da projeção; M6 — Simulador de Cenários (Feature #3) só depois.

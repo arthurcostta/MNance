@@ -101,6 +101,28 @@ export function usePortfolio(uid: string | undefined) {
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
 
+  // Busca os ativos do Firestore. Exposta como `refresh` para a tela de Investimentos atualizar os
+  // saldos depois de um check-in sem recarregar a página.
+  const loadAssets = useCallback(
+    async (isCancelled: () => boolean): Promise<AssetWithId[] | null> => {
+      if (!uid) return null
+      try {
+        const all = await getAssets(uid)
+        if (isCancelled()) return null
+        setRawAssets(all)
+        return all
+      } catch (error) {
+        if (!isCancelled()) {
+          setActionError(error instanceof Error ? error.message : 'Erro ao carregar ativos.')
+        }
+        return null
+      } finally {
+        if (!isCancelled()) setLoadingInitial(false)
+      }
+    },
+    [uid]
+  )
+
   useEffect(() => {
     if (!uid) {
       setLoadingInitial(false)
@@ -108,30 +130,15 @@ export function usePortfolio(uid: string | undefined) {
     }
 
     let cancelled = false
-
-    const fetchAssets = async () => {
-      try {
-        const all = await getAssets(uid)
-        if (!cancelled) {
-          setRawAssets(all)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setActionError(error instanceof Error ? error.message : 'Erro ao carregar ativos.')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingInitial(false)
-        }
-      }
-    }
-
-    fetchAssets()
+    void loadAssets(() => cancelled)
 
     return () => {
       cancelled = true
     }
-  }, [uid])
+  }, [uid, loadAssets])
+
+  // Devolve os ativos recém-lidos (o fechamento do check-in compara antes × depois).
+  const refresh = useCallback(() => loadAssets(() => false), [loadAssets])
 
   const assets = useMemo(
     () =>
@@ -209,6 +216,7 @@ export function usePortfolio(uid: string | undefined) {
     committedContribution,
     loadingInitial,
     actionError,
+    refresh,
     addAsset,
     updateAsset,
     archiveAsset,

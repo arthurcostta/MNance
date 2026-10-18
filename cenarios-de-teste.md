@@ -2304,6 +2304,62 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 22. Tela Investimentos: check-in mensal `[M5.9]`
+
+### CENÁRIO 152: Primeira visita pede os dias de investir `[M5.9]`
+
+**Categoria:** Happy path
+**Pré-condições:** Conta sem `investmentDayPromptAnswered`.
+**Passos:** 1. Abrir `/investments`. 2. Escolher "Dois dias" → 1 e 2 → "Salvar".
+**Resultado esperado:** O cartão "Quer definir um dia para investir?" some; aparecem "1º dia de investir" e "2º dia de investir" com a data já ajustada a dia útil (ex.: dia 1 de 10/2026 = quinta). Em Conta, o bloco "Dias de investir" mostra o que foi salvo.
+
+### CENÁRIO 153: Check-in grava valor do ativo, cria ativo novo e some do banner `[M5.9]`
+
+**Categoria:** Happy path / persistência
+**Passos:** 1. Num dia já chegado, escrever +R$ 1.000 num ativo existente e criar "Investi em algo novo" (R$ 500) → "Confirmar aportes". 2. Recarregar a página. 3. Abrir Portfólio e Radar.
+**Resultado esperado:** O fechamento mostra "Patrimônio: antes → depois" com a diferença exata do que foi investido. Depois de recarregar, o dia aparece respondido ("Investiu mais/menos/como programado"), sem botão de confirmar. O ativo existente subiu R$ 1.000; o ativo novo aparece no Portfólio com R$ 500. Radar e Portfólio mostram o mesmo patrimônio; o aviso "Hoje é dia de investir" não aparece mais.
+
+### CENÁRIO 154: Ativo arquivado não entra no fechamento `[M5.9]`
+
+**Categoria:** Regressão
+**Pré-condições:** Conta com um ativo arquivado que tenha aporte programado.
+**Resultado esperado:** O fechamento usa só ativos ativos (mesma regra do Radar). Antes da correção, o "depois" somava o arquivado e o fechamento mostrava R$ 100 a mais que o Radar. Coberto por teste unitário (`useInvestments.test.ts`).
+
+### CENÁRIO 155: Conta sem ativos: fechamento usa a estimativa do onboarding `[M5.9]`
+
+**Categoria:** Edge case
+**Pré-condições:** Conta nova, patrimônio R$ 10.000 no onboarding, nenhum ativo.
+**Passos:** 1. Responder um dia com "Investi em algo novo" de R$ 300. 2. Ler o fechamento. 3. Abrir Radar.
+**Resultado esperado:** Fechamento "R$ 10.000,00 (estimativa do onboarding) → R$ 300,00". O aviso de aderência aparece (100% → 60% se o plano do dia era R$ 500). O Radar mostra R$ 300 como patrimônio dos ativos, sem o aviso de estimativa.
+
+### CENÁRIO 156: "Não investi este mês" registra o dia sem mexer em ativos `[M5.9]`
+
+**Categoria:** Happy path
+**Passos:** 1. Num dia já chegado, "Não investi este mês". 2. Conferir Portfólio e Radar.
+**Resultado esperado:** O dia aparece como "Não investi" com investido R$ 0. Nenhum valor de ativo muda. A aderência considera esse dia como 0%.
+
+### CENÁRIO 157: Não reenviar o mesmo dia `[M5.9]`
+
+**Categoria:** Regressão
+**Resultado esperado:** Depois de respondido, o dia não tem mais botão de confirmar. Uma segunda gravação do mesmo id (mês + número do dia) é recusada pela transação: nenhum saldo é somado duas vezes.
+
+### CENÁRIO 158: Aderência ajusta a projeção do Radar `[M5.9]`
+
+**Categoria:** Regra de negócio
+**Resultado esperado:** Com aderência de 60%, o painel de premissas mostra "Aderência aos seus check-ins: 60%" e os aportes futuros são ajustados por ela (projeção mais lenta que com 100%). Coberto por teste unitário (`buildProjectionMetrics` com aderência 0,5 reduz o valor no prazo).
+
+### CENÁRIO 159: Banner no Radar quando o dia chega `[M5.9]`
+
+**Categoria:** Happy path
+**Resultado esperado:** Num dia de investir já chegado e sem resposta, o Radar mostra "Hoje é dia de investir" com "Atualizar investimentos" (leva a `/investments`) e "Não investi este mês". Some depois de responder.
+
+### CENÁRIO 160: Dias de investir em Conta `[M5.9]`
+
+**Categoria:** Interação
+**Resultado esperado:** Em Conta → "Dias de investir", trocar para "Prefiro responder no fim do mês" e salvar: o check-in passa a abrir no último dia útil do mês. Dia 31 em mês curto vira o último dia útil; dia que cai em fim de semana vai para o próximo dia útil.
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
@@ -2315,3 +2371,4 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 | 07/10/2026 | M5.8 Fase 2 (aporte programado por ativo, não commitada) | 138–142 no navegador automatizado (mobile 390px e desktop 1280px) com `qa.rafael`; números conferidos contra `check-fase2.mjs` (script independente) | 0 | Validação de saldo 0; consórcio R$ 1.500 × 60 parcelas (restam 60 até 09/2031; edição para 38 → até 11/2029; zerar o aporte limpa a linha e o card). Plano R$ 1.445,25: ~49a1m, R$ 937.009 no prazo, aviso de falta de R$ 54,75 (≈ 0,9 p.p.). "Investir tudo": ~38a3m, R$ 1.922.418, +20% → 36a10m. Dados de teste desfeitos (consórcios arquivados; regra do saldo de volta a "Usar em lazer"). 143 e 144 só por testes unitários; o Firestore foi conferido só pela interface. `tsc` 0 erros, 236 testes (19 arquivos), build ok. **Achado:** a Distribuição não tem o cartão "bate sua meta" prevista na Fase 3. |
 | 16/10/2026 | M5.8 Fase 2b (editar onboarding, não commitada) | 145–149 + 87/89/114 atualizados, no navegador automatizado (desktop 1280px e mobile 390px) com `qa.rafael` e uma conta descartável `qa.novo.*` (script `sim11-onboarding-edit.mjs` e `sim12-new-user-onboarding.mjs`) | 0 | **148 reproduzido antes do fix:** sem `merge`, "Atualizar" no onboarding trocou a inflação de 0,0% para 4,5%; com `merge: true` ela permanece 0,0%. Edição abre na revisão (4 botões "Alterar", sem inputs), meta inválida bloqueia "Voltar à revisão", mudar a meta de R$ 5 mi para R$ 2 mi leva o Radar de ~45a4m para ~22a4m, "Cancelar" sem alterações sai direto e com alterações pede confirmação (recusar mantém; aceitar não grava). Conta nova: 5 passos, pontinhos, sem "Cancelar", revisão com preview 55/10/10/25. `tsc` 0 erros, 248 testes (20 arquivos), `oxlint` só warnings antigos, `npm run build` ok. Meta e inflação da conta de teste restauradas (R$ 5 mi / 4,5%). Console limpo. |
 | 17/10/2026 | M5.8 Fase 2b — patrimônio no onboarding (não commitada) | 150 e 151 no navegador automatizado (desktop 1280px e mobile 390px) com `qa.rafael` (valor de um ativo alterado +R$ 1.000 e restaurado) e uma conta descartável `qa.semativos.*` (`sim13-patrimony.mjs`, `sim14-sem-ativos.mjs`) | 0 | Com ativos: a revisão mostrou R$ 42.291,00, igual ao card do Radar, sem "Alterar" no bloco; "Cancelar" sem mexer saiu sem aviso; "Atualizar" manteve o Radar. Sem ativos: 4 "Alterar", campo editável com R$ 10.000,00, Radar passou a R$ 12.500 (estimativa). `tsc` 0 erros, 252 testes, build ok, lint com 1 warning novo do mesmo tipo dos antigos. Ativo e Radar da conta de teste restaurados (R$ 41.291,00). |
+| 20/10/2026 | M5.9 — tela Investimentos (não commitada) | 152–159 no navegador automatizado (desktop 1280px; mobile 390px só visual) com `qa.rafael` e uma conta descartável `qa.inv.*` (`sim16-investments.mjs`, `sim17-conta-limpa.mjs`); 154 e 157 cobertos por teste unitário | 0 | Check-in gravou os valores, o banner sumiu, Portfólio e Radar subiram juntos (+R$ 1.500). Bugs achados e corrigidos: fechamento somava ativo arquivado (+R$ 100) e conta sem ativos usava 0 em vez da estimativa. Conta de teste restaurada (R$ 41.291). `npm test` 301 testes, lint sem erros, build ok. |

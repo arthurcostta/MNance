@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Radar, PieChart, Wallet, User } from 'lucide-react'
+import { Radar, PieChart, Wallet, User, TrendingUp } from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -13,6 +13,7 @@ export interface NavItem {
 // Ordem = prioridade de uso (roadmap Fase 1), não alfabética.
 export const PRIMARY_NAV: NavItem[] = [
   { to: '/', label: 'Radar', icon: Radar },
+  { to: '/investments', label: 'Investimentos', icon: TrendingUp },
   { to: '/distribution', label: 'Distribuição', icon: PieChart },
   { to: '/portfolio', label: 'Portfólio', icon: Wallet },
 ]

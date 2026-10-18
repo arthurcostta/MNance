@@ -7,6 +7,7 @@ import { ProjectionAssumptions } from '../components/Dashboard/ProjectionAssumpt
 import Card from '../components/Common/Card'
 import Alert from '../components/Common/Alert'
 import LoadingState from '../components/Common/LoadingState'
+import InvestmentCheckinBanner from '../components/Dashboard/InvestmentCheckinBanner'
 import { updateUserDocument } from '../services/userService'
 import type { ProjectionVariant } from '../core/portfolioProjection'
 
@@ -86,6 +87,8 @@ export default function Dashboard() {
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-6 text-2xl font-semibold">Radar de Patrimônio</h1>
+
+      <InvestmentCheckinBanner uid={user?.uid} />
 
       {budgetAlert && (
         <div className="mb-6">

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { logout } from '../services/authService'
+import { updateUserDocument } from '../services/userService'
+import InvestmentDaysForm from '../components/Investments/InvestmentDaysForm'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Alert from '../components/Common/Alert'
@@ -9,7 +11,7 @@ import Alert from '../components/Common/Alert'
 // Dados da conta, atalho para reeditar o onboarding e o único "Sair" do mobile (a barra
 // inferior não tem espaço para ele). No desktop o "Sair" também fica no rodapé da sidebar.
 export default function Account() {
-  const { user, currentUser } = useAuth()
+  const { user, currentUser, refreshCurrentUser } = useAuth()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +49,19 @@ export default function Account() {
         >
           Editar onboarding
         </Link>
+      </Card>
+
+      <Card className="mb-4">
+        <p className="mb-3 text-sm font-medium text-gray-900">Dias de investir</p>
+        <InvestmentDaysForm
+          initialDays={currentUser?.investmentDays ?? []}
+          submitLabel="Salvar dias"
+          onSave={async (days) => {
+            if (!user) return
+            await updateUserDocument(user.uid, { investmentDays: days, investmentDayPromptAnswered: true })
+            await refreshCurrentUser()
+          }}
+        />
       </Card>
 
       {error && (

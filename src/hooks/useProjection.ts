@@ -2,6 +2,7 @@
 // core/portfolioProjection.ts. Radar e painel de premissas leem do mesmo resultado, então não divergem.
 
 import { useMemo } from 'react'
+import type { User } from '../types/user'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
 import { calculateProjectionMetrics, type ProjectionMetrics } from '../core/portfolioProjection'
@@ -11,6 +12,7 @@ import {
   formatEndMonthLabel,
   resolveRemainingMonths,
   yearMonthOf,
+  type YearMonth,
 } from '../core/installments'
 import {
   ALLOCATION_MODELS,
@@ -46,11 +48,69 @@ export interface ProjectionAssumptionsData {
   realRate: number
   cappedAssets: ProjectionMetrics['rates']['cappedAssets']
   investmentsPlan: number
+  // Aderência dos últimos check-ins (1 = 100%); aplicada a todos os aportes futuros.
+  adherence: number
   inflationRate: number
   contributions: ContributionAssumptionsData
 }
 
-export function useProjection(investmentsPlan: number) {
+export interface ProjectionAssetSnapshot {
+  name: string
+  currentValue: number
+  expectedReturnRate: number
+  monthlyContribution?: number
+  contributionEndsAt?: string
+}
+
+export interface BuildProjectionInput {
+  assets: ProjectionAssetSnapshot[]
+  currentUser: Pick<
+    User,
+    'currentPatrimony' | 'goalAmount' | 'goalYears' | 'riskProfile' | 'monthlyIncomeNet' | 'inflationRate'
+  >
+  investmentsPlan: number
+  // Fração (1 = 100%). Escala o aporte planejado e os aportes programados juntos: a parte livre
+  // continua sendo a diferença entre os dois, só que na mesma proporção.
+  adherence: number
+  today: YearMonth
+}
+
+// Cálculo puro do Radar: usado pelo hook e pela tela Investimentos (antes/depois de um check-in),
+// para que os dois números nunca venham de caminhos diferentes.
+export function buildProjectionMetrics({
+  assets,
+  currentUser,
+  investmentsPlan,
+  adherence,
+  today,
+}: BuildProjectionInput): ProjectionMetrics {
+  const strategyNominalRate = calculateModelExpectedReturn(
+    ALLOCATION_MODELS[modelKeyForRiskProfile(currentUser.riskProfile)]
+  )
+  const inflationRate = currentUser.inflationRate ?? DEFAULT_INFLATION_RATE
+
+  return calculateProjectionMetrics({
+    assets: assets.map((asset) => ({
+      name: asset.name,
+      currentValue: asset.currentValue,
+      expectedReturnRate: asset.expectedReturnRate,
+      ...(asset.monthlyContribution !== undefined
+        ? {
+            monthlyContribution: asset.monthlyContribution * adherence,
+            remainingMonths: resolveRemainingMonths(asset.contributionEndsAt, today),
+          }
+        : {}),
+    })),
+    startingPatrimonyEstimate: currentUser.currentPatrimony,
+    investmentsPlan: investmentsPlan * adherence,
+    strategyNominalRate,
+    inflationRate,
+    goalAmount: currentUser.goalAmount,
+    goalYears: currentUser.goalYears,
+  })
+}
+
+export function useProjection(investmentsPlan: number, adherence = 1) {
   const { user, currentUser } = useAuth()
   const portfolio = usePortfolio(user?.uid)
 
@@ -60,31 +120,14 @@ export function useProjection(investmentsPlan: number) {
 
   const metrics = useMemo(() => {
     if (!currentUser) return null
-
-    const strategyNominalRate = calculateModelExpectedReturn(
-      ALLOCATION_MODELS[modelKeyForRiskProfile(currentUser.riskProfile)]
-    )
-
-    return calculateProjectionMetrics({
-      assets: portfolio.assets.map((asset) => ({
-        name: asset.name,
-        currentValue: asset.currentValue,
-        expectedReturnRate: asset.expectedReturnRate,
-        ...(asset.monthlyContribution !== undefined
-          ? {
-              monthlyContribution: asset.monthlyContribution,
-              remainingMonths: resolveRemainingMonths(asset.contributionEndsAt, today),
-            }
-          : {}),
-      })),
-      startingPatrimonyEstimate: currentUser.currentPatrimony,
+    return buildProjectionMetrics({
+      assets: portfolio.assets,
+      currentUser,
       investmentsPlan,
-      strategyNominalRate,
-      inflationRate,
-      goalAmount: currentUser.goalAmount,
-      goalYears: currentUser.goalYears,
+      adherence,
+      today,
     })
-  }, [currentUser, portfolio.assets, investmentsPlan, inflationRate, today])
+  }, [currentUser, portfolio.assets, investmentsPlan, adherence, today])
 
   const assumptions: ProjectionAssumptionsData | null = metrics
     ? {
@@ -96,6 +139,7 @@ export function useProjection(investmentsPlan: number) {
         realRate: metrics.rates.realUsed,
         cappedAssets: metrics.rates.cappedAssets,
         investmentsPlan,
+        adherence,
         inflationRate,
         contributions: {
           committed: metrics.contributions.committed,

@@ -136,6 +136,12 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
               = fatia de Investimentos + saldo das essenciais (conforme sua regra), constante em valores de hoje
             </span>
           </div>
+          <p className="mt-1 text-xs text-gray-600">
+            Aderência aos seus check-ins: <span className="font-semibold">{Math.round(assumptions.adherence * 100)}%</span>
+            {assumptions.adherence === 1
+              ? ' — sem histórico ainda, usamos o que você programou.'
+              : ' — os aportes futuros são ajustados por ela.'}
+          </p>
 
           {contributions.programmed.length > 0 && (
             <div className="mt-3 space-y-2">

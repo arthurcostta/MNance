@@ -8,6 +8,7 @@ import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Portfolio from './pages/Portfolio'
 import Distribution from './pages/Distribution'
+import Investments from './pages/Investments'
 import Account from './pages/Account'
 
 // Simulator, Expenses, Installments, Calendar, Report e Settings continuam no disco como
@@ -29,6 +30,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/investments" element={<Investments />} />
               <Route path="/distribution" element={<Distribution />} />
               <Route path="/account" element={<Account />} />
             </Route>
