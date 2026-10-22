@@ -48,7 +48,7 @@ export default function Dashboard() {
   // Com parcelas programadas (ex.: consórcio), as alavancas incidem só sobre o aporte livre.
   const leverTarget = contributions.committed > 0 ? 'no aporte livre' : 'no aporte'
   const leverItems: LeverChipItem[] = []
-  if (boosted) leverItems.push({ label: `+20% ${leverTarget}`, delta: leverDelta(base, boosted) })
+  if (boosted) leverItems.push({ label: `+20% ${leverTarget}`, delta: leverDelta(base, boosted), swatch: true })
   if (stepUp) leverItems.push({ label: '+3% ao ano no aporte', delta: leverDelta(base, stepUp) })
 
   const segments: DistributionSegment[] = distribution.flow && distribution.amounts

@@ -550,7 +550,13 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
   cenários 152–159 executados em `qa.rafael` e numa conta descartável (`qa.inv.*`); screenshots em `C:\Dev\mnance-qa\shots\`.
   A conta de teste foi restaurada (R$ 41.291 de patrimônio, ativo de teste arquivado).
 
-**Radar visual (22/10/2026): implementado, ainda sem commit.** Mesmos números; só a apresentação mudou. Plano: bloco "Radar mais visual" no arquivo de plano do Claude Code (`.claude/plans`).
+**Radar visual (commit `ef9ee93`, em produção desde 22/10/2026).** Mesmos números; só a apresentação mudou. Plano: bloco "Radar mais visual" no arquivo de plano do Claude Code (`.claude/plans`).
+
+**Gráfico e alavancas legíveis (22/10/2026): implementado, ainda sem commit.** Só apresentação; motor e números não mudam.
+- Legenda com 3 itens (faixa de cenários vira uma entrada só); Meta, prazo e meta atingida são rotulados no próprio gráfico (plugin `radarAnnotations` em `ProjectionChart.tsx`), com versão curta no celular.
+- Eixo Y em degraus redondos: `niceAxis` em `core/radarView.ts`. Eixo X: "Anos a partir de hoje".
+- Chips: `leverResultText` em `core/radarView.ts` ("meta em N anos (X antes)"); o chip do +20% tem o traço verde da linha (`swatch`).
+- Testes: `radarView.test.ts` (321 testes no total). Cenários 167–170 em `cenarios-de-teste.md` §23. Verificação no navegador por `canvas` e captura da página (`C:\Dev\mnance-qa\shot-chart-readability.mjs`).
 - **Nova ordem:** avisos curtos → `RadarHero` (tempo até a meta, selo de prazo, barra de progresso, linha do tempo com prazo, meta e faixa de cenários) → 3 `StatTile` (patrimônio, entra por mês, retorno real) → `LeverChips` (alavancas sempre visíveis; some quem não muda o prazo) → gráfico → `GoalGapCard` (`<details>` fechado; resumo na linha de título) → `DistributionBar` → painel de premissas (`<details>` fechado; limitações em sub-`<details>`).
 - **Regra de apresentação:** o cálculo não mudou. Posições e deltas vêm de `core/radarView.ts` (`timelineMarkers`, `leverDelta`, `progressPercent`), que só reorganiza o que o motor já calculou. Formatação em `utils/formatYears.ts` (anos por extenso e curto) e `formatCompactBRL` em `utils/formatCurrency.ts`.
 - **Acessibilidade:** barras com `role="progressbar"`; o herói tem um resumo em `sr-only`; cor nunca é o único sinal (selo tem texto).

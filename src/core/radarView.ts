@@ -1,6 +1,9 @@
 // Apresentação do Radar (22/10/2026): posições e deltas para os elementos visuais. TS puro, sem números novos:
 // só reorganiza o que o motor já calculou.
 
+import { formatYears } from '../utils/formatYears'
+import { formatCompactBRL } from '../utils/formatCurrency'
+
 export interface TimelineInput {
   goalYears: number
   baseYears: number | null
@@ -80,4 +83,28 @@ export function leverDelta(base: LeverVariant, lever: LeverVariant): LeverDelta 
 export function progressPercent(current: number, goal: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(goal) || goal <= 0) return 0
   return clampPercent((current / goal) * 100)
+}
+
+const NICE_FACTORS = [1, 2, 2.5, 5, 10]
+
+// Eixo do gráfico com degraus redondos (1, 2, 2,5 ou 5 × 10ⁿ). O topo é o primeiro múltiplo do passo que cobre maxValue.
+export function niceAxis(maxValue: number, divisions = 6): { max: number; step: number } {
+  if (!Number.isFinite(maxValue) || maxValue <= 0) return { max: 1, step: 1 }
+  const rough = maxValue / divisions
+  const magnitude = 10 ** Math.floor(Math.log10(rough))
+  const normalized = rough / magnitude
+  const step = (NICE_FACTORS.find((factor) => factor >= normalized) ?? 10) * magnitude
+  // O -1e-9 evita que uma soma de ponto flutuante vire um passo a mais.
+  const max = Math.ceil(maxValue / step - 1e-9) * step
+  return { max, step }
+}
+
+// Texto do chip de alavanca, em linguagem direta. Vazio quando a alavanca não muda nada (o chip não aparece).
+export function leverResultText(delta: LeverDelta): string {
+  if (delta.kind === 'faster') {
+    return `meta em ${formatYears(delta.years ?? 0)} (${formatYears(delta.deltaYears ?? 0)} antes)`
+  }
+  if (delta.kind === 'reachable') return `passa a alcançar a meta em ${formatYears(delta.years ?? 0)}`
+  if (delta.kind === 'value') return `chega a ${formatCompactBRL(delta.valueAtDeadline)} no prazo`
+  return ''
 }

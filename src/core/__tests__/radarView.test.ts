@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { leverDelta, progressPercent, timelineMarkers } from '../radarView'
+import { leverDelta, leverResultText, niceAxis, progressPercent, timelineMarkers } from '../radarView'
 import { formatYears, formatYearsShort } from '../../utils/formatYears'
 import { formatCompactBRL } from '../../utils/formatCurrency'
 
@@ -66,6 +66,46 @@ describe('progressPercent', () => {
     expect(progressPercent(-5, 100)).toBe(0)
     expect(progressPercent(300, 100)).toBe(100)
     expect(progressPercent(NaN, 100)).toBe(0)
+  })
+})
+
+describe('niceAxis', () => {
+  it('meta de R$ 5 mi (com folga de 10%) vira eixo de 0 a 6 mi em degraus de 1 mi', () => {
+    expect(niceAxis(5_500_000)).toEqual({ max: 6_000_000, step: 1_000_000 })
+  })
+
+  it('meta de R$ 20 mi usa degraus redondos e cobre o valor pedido', () => {
+    const { max, step } = niceAxis(22_000_000)
+    expect(max).toBeGreaterThanOrEqual(22_000_000)
+    expect(max % step).toBe(0)
+    expect(step).toBe(5_000_000)
+  })
+
+  it('valores pequenos e inválidos não quebram', () => {
+    expect(niceAxis(0)).toEqual({ max: 1, step: 1 })
+    expect(niceAxis(NaN)).toEqual({ max: 1, step: 1 })
+    expect(niceAxis(1_000).max).toBeGreaterThanOrEqual(1_000)
+  })
+})
+
+describe('leverResultText', () => {
+  it('alavanca que encurta o prazo mostra o novo prazo e quanto economiza', () => {
+    const d = leverDelta({ years: 55.5, valueAtDeadline: 1 }, { years: 52.83, valueAtDeadline: 2 })
+    expect(leverResultText(d)).toBe('meta em 52 anos e 10 meses (2 anos e 8 meses antes)')
+  })
+
+  it('meta que passa a ser alcançável', () => {
+    const d = leverDelta({ years: null, valueAtDeadline: 1 }, { years: 28, valueAtDeadline: 2 })
+    expect(leverResultText(d)).toBe('passa a alcançar a meta em 28 anos')
+  })
+
+  it('meta que continua fora mostra o valor no prazo', () => {
+    const d = leverDelta({ years: null, valueAtDeadline: 1 }, { years: null, valueAtDeadline: 1_290_000 })
+    expect(leverResultText(d)).toBe('chega a R$ 1,29 mi no prazo')
+  })
+
+  it('alavanca sem efeito não gera texto', () => {
+    expect(leverResultText(leverDelta({ years: 40, valueAtDeadline: 1 }, { years: 40, valueAtDeadline: 1 }))).toBe('')
   })
 })
 

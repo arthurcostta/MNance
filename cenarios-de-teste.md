@@ -2387,6 +2387,22 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 **Resultado esperado:** O gráfico mantém a curva, a faixa de cenários, o prazo e a meta. A marca "Meta" fica na mesma idade que o herói mostra. Conferir pelo `<canvas>` (captura de página inteira reinicia a animação do Chart.js).
 
+### CENÁRIO 167: Legenda com três itens `[Radar · 22/10/2026]`
+
+**Resultado esperado:** A legenda do gráfico mostra só "Faixa de cenários (−2 / +1 p.p. de retorno)", "Projeção base" e "Com aporte +20%" (quando há alavanca). Não aparecem "Conservador", "Otimista", "Meta", "No seu prazo" nem "Meta atingida".
+
+### CENÁRIO 168: Pontos e meta rotulados no gráfico `[Radar · 22/10/2026]`
+
+**Resultado esperado:** Sobre a linha vermelha há "Meta R$ 5 mi" (ou o valor da meta). No ponto azul do prazo há "No prazo (N anos): R$ X" (versão curta "No prazo: R$ X" no celular). No ponto vermelho, quando a meta é atingida, "Meta atingida aos N anos". Nenhum rótulo corta na borda do gráfico nem cobre a curva de forma ilegível em 390 px e 1280 px.
+
+### CENÁRIO 169: Eixo Y com degraus redondos `[Radar · 22/10/2026]`
+
+**Resultado esperado:** Os rótulos do eixo Y são múltiplos do mesmo passo (ex.: R$ 0, R$ 1 mi, R$ 2 mi…), sem valores quase iguais no topo (ex.: "R$ 6,3 mi" e "R$ 6 mi"). O topo fica logo acima da meta. Eixo X com o título "Anos a partir de hoje" e rótulos sem rotação.
+
+### CENÁRIO 170: Chips em linguagem direta `[Radar · 22/10/2026]`
+
+**Resultado esperado:** Cada chip diz "+20% no aporte: meta em N anos e M meses (X anos e Y meses antes)", com a mesma leitura para "+3% ao ano no aporte". O chip do +20% tem um traço tracejado verde igual à linha do gráfico; o de +3% a.a. não tem traço. Alavanca sem efeito continua sem chip. Os números são os mesmos de antes da mudança.
+
 ---
 
 ## Registro de Execução
