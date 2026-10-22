@@ -552,11 +552,13 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
 
 **Radar visual (commit `ef9ee93`, em produção desde 22/10/2026).** Mesmos números; só a apresentação mudou. Plano: bloco "Radar mais visual" no arquivo de plano do Claude Code (`.claude/plans`).
 
-**Simulador "Quanto seu aporte rende?" (22/10/2026): implementado, ainda sem commit.** Cartão recolhível em Investimentos (entre "Sua aderência" e "Estratégia sugerida"). Começa com o aporte planejado e o retorno real da carteira (mesma taxa do Radar), mas é independente do patrimônio atual: simula do zero.
+**Simulador "Quanto seu aporte rende?" (commit `67a3d57`, em produção; sempre aberto desde 22/10/2026).** Cartão fixo em Investimentos (entre "Sua aderência" e "Estratégia sugerida"). Começa com o aporte planejado e o retorno real da carteira (mesma taxa do Radar), mas é independente do patrimônio atual: simula do zero.
 - Núcleo puro: `core/contributionGrowth.ts` (`simulateContributionGrowth`, `validateGrowthInput`; convenção de aporte no fim do mês, igual a `calculateCompoundInterest`). Testes em `contributionGrowth.test.ts`, com o caso de referência do vídeo (R$ 500, 13,65%, 21 anos → R$ 638.436).
 - UI: `components/Investments/ContributionGrowthCard.tsx` e `ContributionGrowthChart.tsx` (barras empilhadas, eixo com `niceAxis`). `useInvestments` expõe `realReturnRate`.
 - Diferenças com o vídeo, por convenção: juros do mês 12 saem R$ 62 (sobre o saldo do fim do mês 11, o que é o correto para aporte no fim do mês; o vídeo mostra R$ 68); o primeiro marco cai no mês 67 (5 anos e 7 meses) em vez de 66.
 - Cenários 171–175 em `cenarios-de-teste.md` §24.
+
+**Divisão mensal com porcentagem (22/10/2026): implementado, ainda sem commit.** `DistributionBar` mostra "R$ X · Y%", com Y = fatia ÷ soma dos valores mostrados (`sharePercentLabel` em `core/radarView.ts`). É a % da barra, não a configurada na Distribuição: com o saldo das essenciais roteado, a soma passa da renda, e os % mudam. Cenário 176 em `cenarios-de-teste.md`.
 
 **Gráfico e alavancas legíveis (commit `1b0d0f0`, em produção desde 22/10/2026).** Só apresentação; motor e números não mudam.
 - Legenda com 3 itens (faixa de cenários vira uma entrada só); Meta, prazo e meta atingida são rotulados no próprio gráfico (plugin `radarAnnotations` em `ProjectionChart.tsx`), com versão curta no celular.

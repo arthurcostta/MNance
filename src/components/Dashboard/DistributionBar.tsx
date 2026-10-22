@@ -1,4 +1,5 @@
 import { formatBRL } from '../../utils/formatCurrency'
+import { sharePercentLabel } from '../../core/radarView'
 
 export interface DistributionSegment {
   label: string
@@ -22,7 +23,7 @@ export default function DistributionBar({ segments }: DistributionBarProps) {
       <div
         className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100"
         role="img"
-        aria-label={visible.map((s) => `${s.label} ${Math.round((s.value / total) * 100)}%`).join(', ')}
+        aria-label={visible.map((s) => `${s.label} ${sharePercentLabel(s.value, total)}`).join(', ')}
       >
         {visible.map((s) => (
           <div key={s.label} className={s.colorClass} style={{ width: `${(s.value / total) * 100}%` }} />
@@ -35,7 +36,9 @@ export default function DistributionBar({ segments }: DistributionBarProps) {
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${s.colorClass}`} aria-hidden="true" />
               {s.label}
             </span>
-            <span className="font-medium text-gray-900">{formatBRL(s.value)}</span>
+            <span className="whitespace-nowrap font-medium text-gray-900">
+              {formatBRL(s.value)} <span className="font-normal text-gray-500">· {sharePercentLabel(s.value, total)}</span>
+            </span>
           </li>
         ))}
       </ul>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { leverDelta, leverResultText, niceAxis, progressPercent, timelineMarkers } from '../radarView'
+import { leverDelta, leverResultText, niceAxis, progressPercent, sharePercentLabel, timelineMarkers } from '../radarView'
 import { formatYears, formatYearsShort } from '../../utils/formatYears'
 import { formatCompactBRL } from '../../utils/formatCurrency'
 
@@ -85,6 +85,23 @@ describe('niceAxis', () => {
     expect(niceAxis(0)).toEqual({ max: 1, step: 1 })
     expect(niceAxis(NaN)).toEqual({ max: 1, step: 1 })
     expect(niceAxis(1_000).max).toBeGreaterThanOrEqual(1_000)
+  })
+})
+
+describe('sharePercentLabel', () => {
+  it('fatia sobre o total, arredondada a inteiro', () => {
+    expect(sharePercentLabel(3_179.88, 7_234.5)).toBe('44%')
+    expect(sharePercentLabel(100, 100)).toBe('100%')
+  })
+
+  it('fatia pequena positiva vira "<1%" e zero vira "0%"', () => {
+    expect(sharePercentLabel(10, 10_000)).toBe('<1%')
+    expect(sharePercentLabel(0, 10_000)).toBe('0%')
+  })
+
+  it('total zero ou inválido não gera NaN', () => {
+    expect(sharePercentLabel(50, 0)).toBe('0%')
+    expect(sharePercentLabel(NaN, 100)).toBe('0%')
   })
 })
 

@@ -99,6 +99,14 @@ export function niceAxis(maxValue: number, divisions = 6): { max: number; step: 
   return { max, step }
 }
 
+// Porcentagem de uma fatia sobre o total mostrado (inteiro). Fatia pequena e positiva vira "<1%", para não parecer zero.
+export function sharePercentLabel(value: number, total: number): string {
+  if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) return '0%'
+  const percent = (value / total) * 100
+  if (percent > 0 && percent < 1) return '<1%'
+  return `${Math.round(percent)}%`
+}
+
 // Texto do chip de alavanca, em linguagem direta. Vazio quando a alavanca não muda nada (o chip não aparece).
 export function leverResultText(delta: LeverDelta): string {
   if (delta.kind === 'faster') {

@@ -2407,9 +2407,9 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ## 24. Simulador "Quanto seu aporte rende?" (Investimentos) `[M5.9 · 22/10/2026]`
 
-### CENÁRIO 171: Simulador fechado por padrão, valores iniciais vêm do plano `[Investimentos]`
+### CENÁRIO 171: Simulador sempre aberto, valores iniciais vêm do plano `[Investimentos]`
 
-**Resultado esperado:** Na tela Investimentos, o cartão "Quanto seu aporte rende?" fica fechado. Aberto, "Quanto investe por mês" começa com o aporte planejado do mês, "Rende ao ano" com o retorno real da carteira (mesmo número do painel de premissas do Radar) e "Por quanto tempo" com o prazo da meta (limitado a 1–50 anos).
+**Resultado esperado:** Na tela Investimentos, o cartão "Quanto seu aporte rende?" aparece sempre aberto, sem opção de recolher. "Quanto investe por mês" começa com o aporte planejado do mês, "Rende ao ano" com o retorno real da carteira (mesmo número do painel de premissas do Radar) e "Por quanto tempo" com o prazo da meta (limitado a 1–50 anos).
 
 ### CENÁRIO 172: Caso de referência bate com o cálculo `[Investimentos]`
 
@@ -2426,6 +2426,10 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 ### CENÁRIO 175: Celular (390 px) sem rolagem horizontal `[Investimentos]`
 
 **Resultado esperado:** Os três totais cabem em uma linha, o gráfico de barras e a legenda não cortam valores e a página não rola para os lados.
+
+### CENÁRIO 176: Porcentagem em cada item da Divisão mensal `[Radar · 22/10/2026]`
+
+**Resultado esperado:** Cada item da "Divisão mensal" mostra o valor em R$ e a porcentagem da barra ("R$ 3.179,55 · 44%"). As porcentagens somam ~100%. Fatia positiva menor que 1% aparece como "<1%". Em 390 px a legenda fica em uma coluna sem quebrar o valor.
 
 ---
 

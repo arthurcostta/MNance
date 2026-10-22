@@ -40,11 +40,13 @@ export default function ContributionGrowthCard({
     : 'Simulação indisponível com estes valores.'
 
   return (
-    <details className="rounded border border-gray-200 bg-white p-4">
-      <summary className="cursor-pointer text-sm font-medium text-gray-900">
-        Quanto seu aporte rende?
-        <span className="ml-2 font-normal text-gray-500">simule com a barra de tempo</span>
-      </summary>
+    <section className="rounded border border-gray-200 bg-white p-4" aria-labelledby="growth-title">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h2 id="growth-title" className="text-lg font-semibold">
+          Quanto seu aporte rende?
+        </h2>
+        <span className="text-sm text-gray-500">simule com a barra de tempo</span>
+      </div>
 
       <div className="mt-4 space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -154,6 +156,6 @@ export default function ContributionGrowthCard({
           O Radar usa seus ativos e sua aderência. Taxa atual: {formatPercent(ratePercent)} a.a.
         </p>
       </div>
-    </details>
+    </section>
   )
 }
