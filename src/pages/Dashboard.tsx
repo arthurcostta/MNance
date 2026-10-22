@@ -4,53 +4,27 @@ import { useDashboard } from '../hooks/useDashboard'
 import BudgetAlertBanner from '../components/Dashboard/BudgetAlertBanner'
 import ProjectionChart from '../components/Dashboard/ProjectionChart'
 import { ProjectionAssumptions } from '../components/Dashboard/ProjectionAssumptions'
-import Card from '../components/Common/Card'
+import RadarHero from '../components/Dashboard/RadarHero'
+import StatTile from '../components/Dashboard/StatTile'
+import LeverChips, { type LeverChipItem } from '../components/Dashboard/LeverChips'
+import GoalGapCard from '../components/Dashboard/GoalGapCard'
+import DistributionBar, { type DistributionSegment } from '../components/Dashboard/DistributionBar'
 import Alert from '../components/Common/Alert'
+import Card from '../components/Common/Card'
 import LoadingState from '../components/Common/LoadingState'
 import InvestmentCheckinBanner from '../components/Dashboard/InvestmentCheckinBanner'
 import { updateUserDocument } from '../services/userService'
-import type { ProjectionVariant } from '../core/portfolioProjection'
+import { leverDelta } from '../core/radarView'
+import { formatCompactBRL } from '../utils/formatCurrency'
+import { formatPercent } from '../utils/formatPercent'
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  })
-}
-
-function formatYears(years: number): string {
-  if (years === 0) {
-    return 'já alcançada'
-  }
-
-  const wholeYears = Math.floor(years)
-  const months = Math.round((years - wholeYears) * 12)
-
-  const yearsLabel = wholeYears > 0 ? `${wholeYears} ${wholeYears === 1 ? 'ano' : 'anos'}` : ''
-  const monthsLabel = months > 0 ? `${months} ${months === 1 ? 'mês' : 'meses'}` : ''
-
-  return [yearsLabel, monthsLabel].filter(Boolean).join(' e ')
-}
-
-function formatTimeToGoal(variant: ProjectionVariant, horizonYears: number): string {
-  return variant.years === null ? `mais de ${horizonYears} anos` : formatYears(variant.years)
-}
-
-// Descreve o efeito de uma alavanca com os números do próprio motor. Devolve null quando ela não muda o resultado.
-function describeLever(
-  label: string,
-  lever: ProjectionVariant,
-  base: ProjectionVariant,
-  goalYears: number
-): string | null {
-  if (lever.years !== null && base.years !== null) {
-    if (lever.years === base.years) return null
-    return `${label}: você chega à meta em ${formatYears(lever.years)} (em vez de ${formatYears(base.years)}).`
-  }
-  if (lever.years !== null) {
-    return `${label}: a meta passaria a ser atingida em ${formatYears(lever.years)}.`
-  }
-  return `${label}: ${formatCurrency(lever.valueAtDeadline)} em ${goalYears} anos (hoje: ${formatCurrency(base.valueAtDeadline)}).`
+// Segmentos da barra de distribuição. As cores só diferenciam as fatias; a legenda traz o nome e o valor.
+const SEGMENT_COLORS = {
+  essentials: 'bg-gray-700',
+  education: 'bg-blue-400',
+  leisure: 'bg-amber-300',
+  investments: 'bg-green-600',
+  companyCash: 'bg-purple-400',
 }
 
 export default function Dashboard() {
@@ -63,7 +37,7 @@ export default function Dashboard() {
 
   const { metrics, assumptions, budgetAlert, distribution, inflationRate } = dashboard
   const { goalAmount, goalYears } = currentUser
-  const { base, conservative, optimistic, boosted, stepUp, requiredContribution } = metrics
+  const { base, conservative, optimistic, boosted, stepUp, requiredContribution, contributions } = metrics
 
   const handleInflationChange = async (newRate: number) => {
     if (!user?.uid) return
@@ -72,125 +46,65 @@ export default function Dashboard() {
   }
 
   // Com parcelas programadas (ex.: consórcio), as alavancas incidem só sobre o aporte livre.
-  const { contributions } = metrics
-  const leverTarget = contributions.committed > 0 ? 'o aporte livre' : 'o aporte'
-  const levers = [
-    boosted ? describeLever(`Aumentando ${leverTarget} em 20%`, boosted, base, goalYears) : null,
-    stepUp
-      ? describeLever(`Se ${leverTarget} crescer 3% ao ano acima da inflação`, stepUp, base, goalYears)
-      : null,
-  ].filter((line): line is string => line !== null)
+  const leverTarget = contributions.committed > 0 ? 'no aporte livre' : 'no aporte'
+  const leverItems: LeverChipItem[] = []
+  if (boosted) leverItems.push({ label: `+20% ${leverTarget}`, delta: leverDelta(base, boosted) })
+  if (stepUp) leverItems.push({ label: '+3% ao ano no aporte', delta: leverDelta(base, stepUp) })
 
-  const monthlyNeeded = requiredContribution.base
-  const monthlyNeededConservative = requiredContribution.conservative
+  const segments: DistributionSegment[] = distribution.flow && distribution.amounts
+    ? [
+        { label: 'Essenciais', value: distribution.amounts.essentials, colorClass: SEGMENT_COLORS.essentials },
+        { label: 'Educação', value: distribution.amounts.education, colorClass: SEGMENT_COLORS.education },
+        { label: 'Lazer', value: distribution.flow.leisureTotal, colorClass: SEGMENT_COLORS.leisure },
+        { label: 'Investimentos', value: distribution.flow.investmentsPlan, colorClass: SEGMENT_COLORS.investments },
+        { label: 'Caixa da Empresa', value: distribution.amounts.companyCash, colorClass: SEGMENT_COLORS.companyCash },
+      ]
+    : []
 
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <h1 className="mb-6 text-2xl font-semibold">Radar de Patrimônio</h1>
+    <div className="mx-auto max-w-2xl space-y-6 p-4">
+      <h1 className="text-2xl font-semibold">Radar de Patrimônio</h1>
 
       <InvestmentCheckinBanner uid={user?.uid} />
 
       {budgetAlert && (
-        <div className="mb-6">
-          <BudgetAlertBanner
-            essentialMonthlyCost={currentUser.essentialMonthlyCost}
-            monthlyIncomeNet={currentUser.monthlyIncomeNet}
-          />
-        </div>
+        <BudgetAlertBanner
+          essentialMonthlyCost={currentUser.essentialMonthlyCost}
+          monthlyIncomeNet={currentUser.monthlyIncomeNet}
+        />
       )}
 
       {assumptions.estimated && (
-        <div className="mb-6">
-          <Alert variant="info">
-            Você ainda não tem ativos cadastrados — a projeção usa o patrimônio informado no onboarding e o retorno da
-            estratégia do seu perfil (estimativa).{' '}
-            <Link to="/portfolio" className="font-medium underline">
-              Cadastre seus ativos no Portfólio
-            </Link>{' '}
-            para um Radar preciso.
-          </Alert>
-        </div>
+        <Alert variant="info">
+          Estimativa: sem ativos cadastrados.{' '}
+          <Link to="/portfolio" className="font-medium underline">
+            Cadastre seus ativos
+          </Link>{' '}
+          para um Radar preciso.
+        </Alert>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <p className="text-xs font-medium text-gray-600">Patrimônio Atual{assumptions.estimated ? ' (estimado)' : ''}</p>
-          <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(assumptions.startingPatrimony)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs font-medium text-gray-600">Velocidade de Crescimento</p>
-          <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(metrics.velocity)}/mês</p>
-        </Card>
-        <Card>
-          <p className="text-xs font-medium text-gray-600">Tempo até a Meta</p>
-          <p className="mt-2 text-xl font-semibold text-gray-900">
-            {base.years === null ? `Mais de ${metrics.horizonYears} anos` : `~${formatYears(base.years)}`}
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Seu prazo: {goalYears} {goalYears === 1 ? 'ano' : 'anos'} ·{' '}
-            <span className={metrics.meetsDeadline ? 'text-green-700' : 'text-amber-700'}>
-              {metrics.meetsDeadline ? 'dentro do prazo' : 'fora do prazo'}
-            </span>
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Otimista: {formatTimeToGoal(optimistic, metrics.horizonYears)} · Conservador:{' '}
-            {formatTimeToGoal(conservative, metrics.horizonYears)}
-          </p>
-        </Card>
+      <RadarHero
+        goalYears={goalYears}
+        goalAmount={goalAmount}
+        currentPatrimony={assumptions.startingPatrimony}
+        baseYears={base.years}
+        optimisticYears={optimistic.years}
+        conservativeYears={conservative.years}
+        horizonYears={metrics.horizonYears}
+        meetsDeadline={metrics.meetsDeadline}
+      />
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <StatTile
+          label={assumptions.estimated ? 'Patrimônio (est.)' : 'Patrimônio'}
+          value={formatCompactBRL(assumptions.startingPatrimony)}
+        />
+        <StatTile label="Entra por mês" value={`${formatCompactBRL(metrics.velocity)}`} />
+        <StatTile label="Retorno real" value={`${formatPercent(assumptions.realRate * 100)} a.a.`} />
       </div>
 
-      {!metrics.meetsDeadline && (
-        <div className="mb-6">
-          <Alert variant="warning">
-            Essa meta, do jeito que está, levaria{' '}
-            {base.years === null ? `mais de ${metrics.horizonYears} anos` : `cerca de ${formatYears(base.years)}`} para se
-            realizar (seu prazo é de {goalYears} {goalYears === 1 ? 'ano' : 'anos'}). Vamos ajustar alguma variável —
-            aporte, prazo ou meta — para encontrar um caminho mais realista?
-          </Alert>
-        </div>
-      )}
-
-      <Card className="mb-6">
-        <p className="text-xs font-medium text-gray-600">No seu prazo ({goalYears} {goalYears === 1 ? 'ano' : 'anos'})</p>
-        <p className="mt-2 text-sm text-gray-800">
-          Com o plano atual você chega a{' '}
-          <span className="font-semibold">{formatCurrency(base.valueAtDeadline)}</span> —{' '}
-          {metrics.deadlineProgressPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da meta de{' '}
-          {formatCurrency(goalAmount)}, em valores de hoje.
-        </p>
-        {monthlyNeeded === null && (
-          <p className="mt-2 text-sm text-gray-800">
-            Nesse prazo a meta não fecha nem com aportes muito maiores — vale revisar o prazo ou o valor da meta.
-          </p>
-        )}
-        {monthlyNeeded !== null && monthlyNeeded > 0 && (
-          <p className="mt-2 text-sm text-gray-800">
-            Para atingir a meta em {goalYears} {goalYears === 1 ? 'ano' : 'anos'} seria preciso investir cerca de{' '}
-            <span className="font-semibold">{formatCurrency(monthlyNeeded)}/mês</span> (hoje:{' '}
-            {formatCurrency(contributions.effectiveMonthly)}/mês
-            {contributions.committed > 0
-              ? `, incluindo ${formatCurrency(contributions.committed)} de parcelas programadas`
-              : ''}
-            )
-            {monthlyNeededConservative !== null && monthlyNeededConservative > monthlyNeeded
-              ? `; no cenário conservador, cerca de ${formatCurrency(monthlyNeededConservative)}/mês.`
-              : '.'}
-          </p>
-        )}
-      </Card>
-
-      {levers.length > 0 && (
-        <div className="mb-6">
-          <Alert variant="success">
-            <p className="font-medium">O que mais acelera sua meta</p>
-            <ul className="mt-2 list-inside list-disc space-y-1">
-              {levers.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </Alert>
-        </div>
-      )}
+      <LeverChips items={leverItems} />
 
       <ProjectionChart
         base={base.series}
@@ -203,39 +117,36 @@ export default function Dashboard() {
         inflationRate={inflationRate}
       />
 
-      <ProjectionAssumptions assumptions={assumptions} onInflationChange={handleInflationChange} />
+      <GoalGapCard
+        goalYears={goalYears}
+        effectiveMonthly={contributions.effectiveMonthly}
+        committed={contributions.committed}
+        requiredMonthly={requiredContribution.base}
+        requiredConservative={requiredContribution.conservative}
+        deadlinePercent={metrics.deadlineProgressPercent}
+      />
 
-      {distribution.flow && distribution.amounts && (
-        <Card className="mt-6">
-          <p className="mb-2 text-xs font-medium text-gray-600">💎 Distribuição Ativa</p>
-          <div className="space-y-1 text-sm text-gray-800">
-            <p>Essenciais {formatCurrency(distribution.amounts.essentials)}</p>
-            <p>Educação {formatCurrency(distribution.amounts.education)}</p>
-            <p>Lazer {formatCurrency(distribution.flow.leisureTotal)}</p>
-            <p>Investimentos {formatCurrency(distribution.flow.investmentsPlan)}</p>
-            {distribution.amounts.companyCash > 0 && (
-              <p>Caixa da Empresa {formatCurrency(distribution.amounts.companyCash)}</p>
-            )}
+      {segments.length > 0 && (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-900">Divisão mensal</p>
+            <Link to="/distribution" className="text-sm text-blue-600 hover:underline">
+              Editar
+            </Link>
           </div>
-          {(distribution.flow.surplusToInvestments ?? 0) > 0 && (
-            <p className="mt-2 text-xs text-gray-600">
-              Investimentos inclui {formatCurrency(distribution.flow.surplusToInvestments ?? 0)} do saldo das
-              despesas essenciais.
-            </p>
-          )}
-          {distribution.flow.surplusPending && (
-            <p className="mt-2 text-xs text-amber-800">
-              Você tem {formatCurrency(distribution.flow.surplus ?? 0)} de saldo nas essenciais sem destino.{' '}
+          <DistributionBar segments={segments} />
+          {distribution.flow?.surplusPending && (
+            <p className="mt-3 text-xs text-amber-800">
+              Saldo de {formatCompactBRL(distribution.flow.surplus ?? 0)} nas essenciais sem destino.{' '}
               <Link to="/distribution" className="font-medium underline">
                 Decidir agora
               </Link>
             </p>
           )}
-          <Link to="/distribution" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
-            Editar distribuição
-          </Link>
         </Card>
       )}
+
+      <ProjectionAssumptions assumptions={assumptions} onInflationChange={handleInflationChange} />
     </div>
   )
 }

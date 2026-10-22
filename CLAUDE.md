@@ -550,6 +550,13 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
   cenários 152–159 executados em `qa.rafael` e numa conta descartável (`qa.inv.*`); screenshots em `C:\Dev\mnance-qa\shots\`.
   A conta de teste foi restaurada (R$ 41.291 de patrimônio, ativo de teste arquivado).
 
+**Radar visual (22/10/2026): implementado, ainda sem commit.** Mesmos números; só a apresentação mudou. Plano: bloco "Radar mais visual" no arquivo de plano do Claude Code (`.claude/plans`).
+- **Nova ordem:** avisos curtos → `RadarHero` (tempo até a meta, selo de prazo, barra de progresso, linha do tempo com prazo, meta e faixa de cenários) → 3 `StatTile` (patrimônio, entra por mês, retorno real) → `LeverChips` (alavancas sempre visíveis; some quem não muda o prazo) → gráfico → `GoalGapCard` (`<details>` fechado; resumo na linha de título) → `DistributionBar` → painel de premissas (`<details>` fechado; limitações em sub-`<details>`).
+- **Regra de apresentação:** o cálculo não mudou. Posições e deltas vêm de `core/radarView.ts` (`timelineMarkers`, `leverDelta`, `progressPercent`), que só reorganiza o que o motor já calculou. Formatação em `utils/formatYears.ts` (anos por extenso e curto) e `formatCompactBRL` em `utils/formatCurrency.ts`.
+- **Acessibilidade:** barras com `role="progressbar"`; o herói tem um resumo em `sr-only`; cor nunca é o único sinal (selo tem texto).
+- Testes: `radarView.test.ts` (13). `npm test` 314 testes, lint sem erros, build ok. Navegador: conferido em desktop e mobile, sem erros de console; gráfico conferido pelo canvas. Cenários 161–166.
+- **Não medido:** a redução de texto (o plano previa comparar com a versão anterior); só o novo número foi medido (≈ 660 caracteres visíveis com o painel fechado).
+
 **Próximo:** M5.10 (push gratuito via FCM + GitHub Actions, com os mesmos dias de investir e `event.waitUntil` no handler `push`).
 Antes disso, vale o aviso de dias passados sem resposta no Radar, se o usuário quiser. Monte Carlo (probabilidade de atingir a meta) é a evolução natural
 da projeção; M6 — Simulador de Cenários (Feature #3) só depois.

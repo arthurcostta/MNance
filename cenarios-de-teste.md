@@ -2360,6 +2360,35 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 23. Radar visual (herói + gráfico, menos texto) `[M5.9 · 22/10/2026]`
+
+### CENÁRIO 161: Resposta principal de relance `[Radar]`
+
+**Categoria:** Happy path
+**Resultado esperado:** Logo abaixo dos avisos, o cartão de herói mostra o tempo até a meta em destaque, um selo "Dentro do prazo" (verde) ou "Fora do prazo · +Xa Ym" (âmbar), a barra de progresso com patrimônio e meta, e a linha do tempo com o prazo e o marco da meta. Os números batem com os de antes da mudança (tempo até a meta, patrimônio, aporte necessário e alavancas).
+
+### CENÁRIO 162: Alavancas como chips `[Radar]`
+
+**Resultado esperado:** "+20% no aporte livre → Xa Ym ▼ Ya Zm" e "+3% ao ano no aporte → …" aparecem sempre. Alavanca que não muda o prazo some; alavanca que torna a meta alcançável mostra "meta em Xa Ym".
+
+### CENÁRIO 163: Análise de lacuna recolhida `[Radar]`
+
+**Resultado esperado:** Fechada, a linha "No seu prazo (N anos)" já mostra "Precisa de R$ X/mês · hoje R$ Y". Aberta, mostra as barras de hoje × necessário, a barra de progresso no prazo e o conservador. Com meta inalcançável, a frase de "nem com aportes maiores" aparece no lugar das barras.
+
+### CENÁRIO 164: Painel de premissas fechado por padrão `[Radar]`
+
+**Resultado esperado:** "Como esta projeção é calculada" começa fechado. Dentro dele, "Limitações" também começa fechado. A edição da inflação continua funcionando como antes.
+
+### CENÁRIO 165: Celular (390 px) sem quebra de linha feia `[Radar]`
+
+**Resultado esperado:** Os três indicadores cabem em uma linha ("R$ 41,3 mil"); a legenda da divisão mensal fica em uma coluna sem cortar valores; o resumo da lacuna quebra em duas linhas, título acima e valores abaixo.
+
+### CENÁRIO 166: Gráfico preservado `[Radar]`
+
+**Resultado esperado:** O gráfico mantém a curva, a faixa de cenários, o prazo e a meta. A marca "Meta" fica na mesma idade que o herói mostra. Conferir pelo `<canvas>` (captura de página inteira reinicia a animação do Chart.js).
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |

@@ -80,7 +80,7 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
   }
 
   return (
-    <details open className="my-4 rounded border border-gray-200 bg-white p-4">
+    <details className="rounded border border-gray-200 bg-white p-4">
       <summary className="cursor-pointer text-sm font-semibold">📊 Como esta projeção é calculada</summary>
 
       <div className="mt-4 space-y-4 text-sm">
@@ -263,9 +263,11 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
           </ul>
         </div>
 
-        <div>
-          <div className={SECTION_TITLE}>Limitações</div>
-          <ul className="list-inside list-disc space-y-1 text-xs text-gray-600">
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Limitações
+          </summary>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-gray-600">
             <li>Retornos brutos (sem imposto de renda ou taxas) — veja o cenário conservador.</li>
             <li>Renda e aportes constantes em valores de hoje (sem aumentos reais).</li>
             <li>Lazer, Educação e Caixa da Empresa não entram na projeção — só o que você investe.</li>
@@ -278,7 +280,7 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
               não é uma promessa.
             </li>
           </ul>
-        </div>
+        </details>
       </div>
     </details>
   )
