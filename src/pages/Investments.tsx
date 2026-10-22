@@ -9,6 +9,7 @@ import { formatBRL } from '../utils/formatCurrency'
 import { formatPercent } from '../utils/formatPercent'
 import CheckinCard from '../components/Investments/CheckinCard'
 import InvestmentDaysForm from '../components/Investments/InvestmentDaysForm'
+import ContributionGrowthCard from '../components/Investments/ContributionGrowthCard'
 import AllocationBar from '../components/Distribution/AllocationBar'
 import AssetClassGlossary from '../components/Distribution/AssetClassGlossary'
 import Alert from '../components/Common/Alert'
@@ -224,6 +225,12 @@ export default function Investments() {
           </ul>
         )}
       </Card>
+
+      <ContributionGrowthCard
+        initialMonthlyContribution={inv.investmentsPlan}
+        initialYears={currentUser.goalYears}
+        initialRealRate={inv.realReturnRate}
+      />
 
       <Card>
         <h2 className="text-lg font-semibold">Estratégia sugerida</h2>

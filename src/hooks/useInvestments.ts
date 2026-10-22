@@ -312,6 +312,19 @@ export function useInvestments(uid: string | undefined) {
     [uid, monthKey, checkinState]
   )
 
+  // Mesma taxa real que o painel de premissas do Radar usa (carteira ou estratégia do perfil).
+  const realReturnRate = useMemo(() => {
+    if (!currentUser) return 0
+    const metrics = buildProjectionMetrics({
+      assets: portfolio.assets.filter((a) => a.status === 'active').map(toProjectionAsset),
+      currentUser,
+      investmentsPlan,
+      adherence: checkinState.adherence,
+      today: { year: today.year, month: today.month },
+    })
+    return metrics.rates.realUsed
+  }, [currentUser, portfolio.assets, investmentsPlan, checkinState.adherence, today])
+
   return {
     loading: !currentUser || portfolio.loadingInitial || checkinState.loadingInitial || distribution.loading,
     currentUser,
@@ -319,6 +332,7 @@ export function useInvestments(uid: string | undefined) {
     monthYm,
     investmentDays,
     investmentsPlan,
+    realReturnRate,
     distribution,
     slots,
     assets: portfolio.assets,

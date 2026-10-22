@@ -2405,6 +2405,30 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ---
 
+## 24. Simulador "Quanto seu aporte rende?" (Investimentos) `[M5.9 · 22/10/2026]`
+
+### CENÁRIO 171: Simulador fechado por padrão, valores iniciais vêm do plano `[Investimentos]`
+
+**Resultado esperado:** Na tela Investimentos, o cartão "Quanto seu aporte rende?" fica fechado. Aberto, "Quanto investe por mês" começa com o aporte planejado do mês, "Rende ao ano" com o retorno real da carteira (mesmo número do painel de premissas do Radar) e "Por quanto tempo" com o prazo da meta (limitado a 1–50 anos).
+
+### CENÁRIO 172: Caso de referência bate com o cálculo `[Investimentos]`
+
+**Resultado esperado:** R$ 500/mês, 13,65% a.a., 21 anos → "Saiu do bolso R$ 126.000,00 · Juros R$ 512.435,96 · Total R$ 638.435,96"; frase "Em 21 anos, 20% do patrimônio é dinheiro que saiu do seu bolso. Os juros já são a maior parte."; marco "9 anos e 11 meses: o total de juros passa tudo o que saiu do seu bolso."
+
+### CENÁRIO 173: Barra de tempo atualiza tudo `[Investimentos]`
+
+**Resultado esperado:** Mover a barra (mouse ou setas do teclado) atualiza totais, frase, barras empilhadas por ano e marcos. Os marcos que não acontecem no período somem (ex.: 3 anos sem marco nenhum).
+
+### CENÁRIO 174: Taxa zero e aporte zero sem erro `[Investimentos]`
+
+**Resultado esperado:** Taxa 0% → juros R$ 0,00, sem marcos e sem "NaN" ou "Infinity". Aporte vazio → totais zerados, sem erro. Valor fora de faixa (taxa acima de 30%, anos fora de 1–50) mostra mensagem no campo.
+
+### CENÁRIO 175: Celular (390 px) sem rolagem horizontal `[Investimentos]`
+
+**Resultado esperado:** Os três totais cabem em uma linha, o gráfico de barras e a legenda não cortam valores e a página não rola para os lados.
+
+---
+
 ## Registro de Execução
 
 | Data | Milestone | Cenários executados | Falhas | Observações |
