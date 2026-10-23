@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useDistribution } from '../hooks/useDistribution'
 import type { PaydaySplit } from '../types/distribution'
+import type { CustomCategory } from '../core/distributionCategories'
 import NivelUmForm from '../components/Distribution/NivelUmForm'
 import EmergencyReserveCard from '../components/Distribution/EmergencyReserveCard'
 import EssentialExpensesSection from '../components/Distribution/EssentialExpensesSection'
@@ -28,6 +29,7 @@ export default function Distribution() {
     payday2Split?: PaydaySplit
     payday1IncomeSharePercent?: number
     monthlyIncomeNet: number
+    customCategories: CustomCategory[]
   }) => {
     setSavingNivelUm(true)
     try {
@@ -51,6 +53,7 @@ export default function Distribution() {
           initialPayday1={distribution.payday1Split}
           initialPayday2={distribution.payday2Split}
           initialIncomeSharePercent={distribution.payday1IncomeSharePercent}
+          initialCategories={distribution.customCategories}
           monthlyIncomeNet={currentUser.monthlyIncomeNet}
           onSave={handleSaveNivelUm}
           isSaving={savingNivelUm}

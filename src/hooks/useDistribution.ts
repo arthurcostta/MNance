@@ -4,6 +4,11 @@ import { useEssentialExpenses } from './useEssentialExpenses'
 import { ALLOCATION_MODELS, type AllocationModel } from '../core/allocationModels'
 import { calculateEmergencyReserve } from '../core/emergencyReserve'
 import {
+  LEGACY_COMPANY_CASH_ID,
+  LEGACY_COMPANY_CASH_NAME,
+  type CustomCategory,
+} from '../core/distributionCategories'
+import {
   getDefaultDistribution,
   getDistribution,
   updateDistribution,
@@ -13,12 +18,19 @@ import type {
   CustomAllocation,
   Distribution,
   DistributionModelChoice,
+  LegacyPaydaySplit,
   PaydaySplit,
+  StoredDistribution,
 } from '../types/distribution'
 import { formatPercent } from '../utils/formatPercent'
 
 export type NivelUmInput = PaydaySplit
-export type NivelUmErrors = Partial<Record<keyof PaydaySplit, string>> & { total?: string }
+type DefaultPercentKey = 'essentialsPercent' | 'educationPercent' | 'leisurePercent' | 'investmentsPercent'
+export type NivelUmErrors = Partial<Record<DefaultPercentKey, string>> & {
+  total?: string
+  // Erro por categoria personalizada (id → mensagem).
+  custom?: Record<string, string>
+}
 export type CustomAllocationErrors = Partial<Record<keyof CustomAllocation, string>> & {
   total?: string
 }
@@ -40,23 +52,29 @@ function sumError(total: number): string | undefined {
     : `Faltam ${formatPercent(Math.abs(diff))} para completar 100%.`
 }
 
-// Valida um PaydaySplit de 5 campos (ganhou companyCashPercent no M5.5).
-export function validateNivelUm(input: PaydaySplit): NivelUmErrors {
+// Soma de um dia de pagamento: as 4 padrão + as personalizadas existentes (ausente = 0).
+function splitTotal(input: PaydaySplit, categories: CustomCategory[]): number {
+  const custom = categories.reduce((sum, c) => sum + (input.customPercents[c.id] ?? 0), 0)
+  return input.essentialsPercent + input.educationPercent + input.leisurePercent + input.investmentsPercent + custom
+}
+
+// Valida um dia de pagamento: cada percentual em 0–100 e a soma (padrão + personalizadas) em 100%.
+export function validateNivelUm(input: PaydaySplit, categories: CustomCategory[] = []): NivelUmErrors {
   const errors: NivelUmErrors = {}
 
   if (!isValidPercent(input.essentialsPercent)) errors.essentialsPercent = PERCENT_RANGE_ERROR
   if (!isValidPercent(input.educationPercent)) errors.educationPercent = PERCENT_RANGE_ERROR
   if (!isValidPercent(input.leisurePercent)) errors.leisurePercent = PERCENT_RANGE_ERROR
   if (!isValidPercent(input.investmentsPercent)) errors.investmentsPercent = PERCENT_RANGE_ERROR
-  if (!isValidPercent(input.companyCashPercent)) errors.companyCashPercent = PERCENT_RANGE_ERROR
 
-  const total =
-    input.essentialsPercent +
-    input.educationPercent +
-    input.leisurePercent +
-    input.investmentsPercent +
-    input.companyCashPercent
-  const totalError = sumError(total)
+  const custom: Record<string, string> = {}
+  for (const category of categories) {
+    const value = input.customPercents[category.id] ?? 0
+    if (!isValidPercent(value)) custom[category.id] = PERCENT_RANGE_ERROR
+  }
+  if (Object.keys(custom).length > 0) errors.custom = custom
+
+  const totalError = sumError(splitTotal(input, categories))
   if (totalError) errors.total = totalError
 
   return errors
@@ -83,7 +101,8 @@ export interface DistributionAmounts {
   education: number
   leisure: number
   investments: number
-  companyCash: number
+  // Valor em R$ de cada categoria personalizada, pelo id.
+  custom: Record<string, number>
 }
 
 export interface PaydayAmountInput {
@@ -103,7 +122,7 @@ export function calculateDistributionAmounts(
     education: 0,
     leisure: 0,
     investments: 0,
-    companyCash: 0,
+    custom: {},
   }
 
   for (const { split, incomeShareFraction } of paydays) {
@@ -112,7 +131,9 @@ export function calculateDistributionAmounts(
     totals.education += (split.educationPercent / 100) * paydayIncome
     totals.leisure += (split.leisurePercent / 100) * paydayIncome
     totals.investments += (split.investmentsPercent / 100) * paydayIncome
-    totals.companyCash += (split.companyCashPercent / 100) * paydayIncome
+    for (const [id, percent] of Object.entries(split.customPercents)) {
+      totals.custom[id] = (totals.custom[id] ?? 0) + (percent / 100) * paydayIncome
+    }
   }
 
   return totals
@@ -282,17 +303,55 @@ interface ResolveContext {
   hasSecondPayday: boolean
 }
 
-// Guard de runtime: aceita só o formato atual (tem payday1Split). Documento ausente ou de um
-// formato antigo (M2 com 3 categorias, M5 "flat") cai no default — desde o M5.8 não convertemos
-// mais o formato M5, que existia só para a conta de teste das primeiras sessões. O campo antigo
-// `investmentBuckets`, quando presente, passa batido e é ignorado. Nunca escreve de volta no
-// Firestore sozinho — só quando o usuário salva algo.
+export type ResolvedDistribution = Omit<Distribution, 'updatedAt'> & { customCategories: CustomCategory[] }
+
+const hasLegacyCash = (split?: LegacyPaydaySplit) => (split?.companyCashPercent ?? 0) > 0
+
+// Converte um dia de pagamento do formato anterior. Se havia "Caixa da Empresa", ela vira a
+// categoria personalizada de mesmo id; sem ela, só sai o campo antigo.
+function toCurrentSplit(split: LegacyPaydaySplit, legacyId: string | null): PaydaySplit {
+  const customPercents: Record<string, number> = { ...(split.customPercents ?? {}) }
+  if (legacyId) customPercents[legacyId] = split.companyCashPercent ?? 0
+  return {
+    essentialsPercent: split.essentialsPercent,
+    educationPercent: split.educationPercent,
+    leisurePercent: split.leisurePercent,
+    investmentsPercent: split.investmentsPercent,
+    customPercents,
+  }
+}
+
+// Guard de runtime. Documento ausente ou sem os campos do formato atual cai no default.
+// Documento com "companyCashPercent" (formato anterior) é convertido em memória: o valor da
+// antiga 5ª categoria vira a personalizada "Caixa da Empresa". Nada é gravado até o usuário
+// salvar. O campo antigo `investmentBuckets`, quando presente, é ignorado.
 export function resolveStoredDistribution(
-  stored: Distribution | null,
+  stored: StoredDistribution | null,
   context: ResolveContext
-): Omit<Distribution, 'updatedAt'> {
-  if (stored?.payday1Split) return stored
-  return getDefaultDistribution(context.hasSecondPayday)
+): ResolvedDistribution {
+  if (!stored?.payday1Split) {
+    return getDefaultDistribution(context.hasSecondPayday) as ResolvedDistribution
+  }
+
+  const legacy = hasLegacyCash(stored.payday1Split) || hasLegacyCash(stored.payday2Split)
+  const legacyId = legacy ? LEGACY_COMPANY_CASH_ID : null
+  const base = stored.customCategories ?? []
+  const customCategories =
+    legacy && !base.some((c) => c.id === LEGACY_COMPANY_CASH_ID)
+      ? [...base, { id: LEGACY_COMPANY_CASH_ID, name: LEGACY_COMPANY_CASH_NAME }]
+      : base
+
+  return {
+    payday1Split: toCurrentSplit(stored.payday1Split, legacyId),
+    ...(stored.payday2Split ? { payday2Split: toCurrentSplit(stored.payday2Split, legacyId) } : {}),
+    ...(stored.payday1IncomeSharePercent !== undefined
+      ? { payday1IncomeSharePercent: stored.payday1IncomeSharePercent }
+      : {}),
+    ...(stored.surplusInvestmentsPercent !== undefined
+      ? { surplusInvestmentsPercent: stored.surplusInvestmentsPercent }
+      : {}),
+    customCategories,
+  }
 }
 
 export function useDistribution(uid: string | undefined) {
@@ -311,6 +370,7 @@ export function useDistribution(uid: string | undefined) {
   const [surplusInvestmentsPercent, setSurplusInvestmentsPercent] = useState<number | undefined>(
     undefined
   )
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([])
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -333,6 +393,7 @@ export function useDistribution(uid: string | undefined) {
       setPayday2Split(resolved.payday2Split)
       setPayday1IncomeSharePercent(resolved.payday1IncomeSharePercent)
       setSurplusInvestmentsPercent(resolved.surplusInvestmentsPercent)
+      setCustomCategories(resolved.customCategories)
       setLoadingInitial(false)
     })
     return () => {
@@ -375,13 +436,15 @@ export function useDistribution(uid: string | undefined) {
       payday2Split?: PaydaySplit
       payday1IncomeSharePercent?: number
       monthlyIncomeNet: number
+      customCategories: CustomCategory[]
     }) => {
       if (!uid) return
       setActionError(null)
       try {
-        // M5.6: Escreve Distribution + User.monthlyIncomeNet (nesta ordem)
+        // Escreve Distribution + User.monthlyIncomeNet (nesta ordem)
         const data: Partial<Omit<Distribution, 'updatedAt'>> = {
           payday1Split: payload.payday1Split,
+          customCategories: payload.customCategories,
         }
         if (payload.payday2Split) data.payday2Split = payload.payday2Split
         if (payload.payday1IncomeSharePercent !== undefined) {
@@ -401,6 +464,7 @@ export function useDistribution(uid: string | undefined) {
         if (payload.payday1IncomeSharePercent !== undefined) {
           setPayday1IncomeSharePercent(payload.payday1IncomeSharePercent)
         }
+        setCustomCategories(payload.customCategories)
 
         // Recarrega currentUser se renda mudou (afeta Dashboard, Reserva de Emergência)
         if (incomeChanged) {
@@ -443,6 +507,7 @@ export function useDistribution(uid: string | undefined) {
     payday2Split,
     payday1IncomeSharePercent,
     surplusInvestmentsPercent,
+    customCategories,
     amounts,
     flow,
     essentialExpenses,

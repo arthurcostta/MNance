@@ -8,8 +8,14 @@ import {
   type NivelUmInput,
   type PaydayAmountsErrors,
 } from '../../hooks/useDistribution'
+import {
+  newCategoryId,
+  validateCategories,
+  type CustomCategory,
+} from '../../core/distributionCategories'
 import type { PaydaySplit } from '../../types/distribution'
 import PaydaySplitFields from './PaydaySplitFields'
+import CustomCategoriesEditor from './CustomCategoriesEditor'
 import FormField from '../Common/FormField'
 import CurrencyInput from '../Common/CurrencyInput'
 import Alert from '../Common/Alert'
@@ -21,12 +27,14 @@ interface NivelUmFormProps {
   initialPayday1: PaydaySplit
   initialPayday2?: PaydaySplit
   initialIncomeSharePercent?: number
+  initialCategories: CustomCategory[]
   monthlyIncomeNet: number
   onSave: (payload: {
     payday1Split: PaydaySplit
     payday2Split?: PaydaySplit
     payday1IncomeSharePercent?: number
     monthlyIncomeNet: number
+    customCategories: CustomCategory[]
   }) => void | Promise<void>
   isSaving?: boolean
 }
@@ -36,7 +44,13 @@ const FALLBACK_SPLIT: PaydaySplit = {
   educationPercent: 10,
   leisurePercent: 10,
   investmentsPercent: 25,
-  companyCashPercent: 0,
+  customPercents: {},
+}
+
+// Tira o percentual de uma categoria removida, para não sobrar valor órfão no documento.
+function withoutCategory(split: NivelUmInput, id: string): NivelUmInput {
+  const { [id]: _removed, ...rest } = split.customPercents
+  return { ...split, customPercents: rest }
 }
 
 export default function NivelUmForm({
@@ -44,6 +58,7 @@ export default function NivelUmForm({
   initialPayday1,
   initialPayday2,
   initialIncomeSharePercent,
+  initialCategories,
   monthlyIncomeNet,
   onSave,
   isSaving = false,
@@ -51,6 +66,8 @@ export default function NivelUmForm({
   const [payday1, setPayday1] = useState<NivelUmInput>(initialPayday1)
   const [payday2, setPayday2] = useState<NivelUmInput>(initialPayday2 ?? FALLBACK_SPLIT)
   const [incomeSharePercent, setIncomeSharePercent] = useState(initialIncomeSharePercent ?? 50)
+  const [categories, setCategories] = useState<CustomCategory[]>(initialCategories)
+  const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>({})
   const [errors1, setErrors1] = useState<NivelUmErrors>({})
   const [errors2, setErrors2] = useState<NivelUmErrors>({})
 
@@ -81,21 +98,43 @@ export default function NivelUmForm({
     setPayday2Amount(split.payday2Amount)
   }
 
+  const addCategory = (name: string) => {
+    const id = newCategoryId(categories.map((c) => c.id))
+    setCategories((prev) => [...prev, { id, name }])
+  }
+
+  const renameCategory = (id: string, name: string) => {
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)))
+    setCategoryErrors((prev) => {
+      const { [id]: _cleared, ...rest } = prev
+      return rest
+    })
+  }
+
+  const removeCategory = (id: string) => {
+    setCategories((prev) => prev.filter((c) => c.id !== id))
+    setPayday1((prev) => withoutCategory(prev, id))
+    setPayday2((prev) => withoutCategory(prev, id))
+  }
+
   const newTotalIncome = payday1Amount + (hasSecondPayday ? payday2Amount : 0)
   const incomeChanged = Math.abs(newTotalIncome - monthlyIncomeNet) >= 0.005
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
-    const nextErrors1 = validateNivelUm(payday1)
-    const nextErrors2 = hasSecondPayday ? validateNivelUm(payday2) : {}
+    const nextCategoryErrors = validateCategories(categories)
+    const nextErrors1 = validateNivelUm(payday1, categories)
+    const nextErrors2 = hasSecondPayday ? validateNivelUm(payday2, categories) : {}
     const nextAmountsErrors = validatePaydayAmounts(
       { payday1Amount, payday2Amount },
       hasSecondPayday
     )
+    setCategoryErrors(nextCategoryErrors)
     setErrors1(nextErrors1)
     setErrors2(nextErrors2)
     setAmountsErrors(nextAmountsErrors)
     if (
+      Object.keys(nextCategoryErrors).length > 0 ||
       Object.keys(nextErrors1).length > 0 ||
       Object.keys(nextErrors2).length > 0 ||
       Object.keys(nextAmountsErrors).length > 0
@@ -108,6 +147,7 @@ export default function NivelUmForm({
         ? { payday2Split: payday2, payday1IncomeSharePercent: incomeSharePercent }
         : {}),
       monthlyIncomeNet: newTotalIncome,
+      customCategories: categories,
     })
   }
 
@@ -174,9 +214,18 @@ export default function NivelUmForm({
         </Alert>
       )}
 
+      <CustomCategoriesEditor
+        categories={categories}
+        errors={categoryErrors}
+        onAdd={addCategory}
+        onRename={renameCategory}
+        onRemove={removeCategory}
+      />
+
       <PaydaySplitFields
         title={hasSecondPayday ? '1º pagamento' : 'Divisão mensal'}
         value={payday1}
+        categories={categories}
         errors={errors1}
         paydayIncome={payday1Amount}
         onChange={(next) => {
@@ -189,6 +238,7 @@ export default function NivelUmForm({
         <PaydaySplitFields
           title="2º pagamento"
           value={payday2}
+          categories={categories}
           errors={errors2}
           paydayIncome={payday2Amount}
           onChange={(next) => {

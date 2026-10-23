@@ -1356,21 +1356,44 @@ travar sem explicar.
 
 ---
 
-### CENÁRIO 83: Caixa da Empresa — a 5ª categoria `[M5.5]`
+### CENÁRIO 83: Categorias padrão e a 5ª categoria `[M5.5 · revisado M5.10]`
 
 **Categoria:** Caminho feliz
 **Pré-condições:** Conta nova, onboarding recém-concluído.
 **Passos:**
-1. Em `/distribution`, conferir o valor inicial de "Caixa da Empresa (%)".
-2. Mudar a divisão para 50/10/10/25/5 e salvar.
-3. Ir ao Dashboard e conferir o card "💎 Distribuição Ativa".
-4. Voltar, zerar a Caixa da Empresa (devolvendo os 5% para Essenciais) e salvar.
-5. Conferir o Dashboard de novo.
+1. Em `/distribution`, conferir as 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e que não existe "Caixa da Empresa" entre as padrão.
+2. Criar a categoria "Caixa da Empresa" (em "Nova categoria"), dar 5% a ela, tirar os 5% de Despesas e salvar.
+3. Ir ao Radar e conferir a "Divisão mensal".
+4. Voltar, remover a categoria (com confirmação) e salvar.
+5. Conferir o Radar de novo.
 
-**Resultado esperado:** O default é **0%** para todo mundo — quem não tem empresa não deve ser
-empurrado para uma categoria que não usa; o default segue 55/10/10/25/0. No passo 3 o card do
-Dashboard ganha a linha "Caixa da Empresa"; no passo 5 essa linha **some** (a linha só é
-renderizada quando o valor é maior que zero), sem deixar um "R$ 0,00" órfão no resumo.
+**Resultado esperado:** O default não tem categoria extra (soma 100% só com as 4 padrão). No passo 3 a
+divisão ganha a fatia "Caixa da Empresa" com o seu %. No passo 5 ela **some**, sem deixar um
+"R$ 0,00" órfão no resumo, e o percentual dela sai de todos os dias de pagamento.
+
+### CENÁRIO 177: Criar categoria personalizada e vê-la no Radar `[M5.10]`
+
+**Resultado esperado:** "Nova categoria" aceita um nome; "Adicionar" cria a categoria com 0% em todos os pagamentos. Após salvar e recarregar, o nome continua na lista e o campo em % aparece em cada dia. A fatia só aparece no Radar com valor maior que zero.
+
+### CENÁRIO 178: Nome inválido não é salvo `[M5.10]`
+
+**Resultado esperado:** Nome vazio, com mais de 30 caracteres, igual a uma categoria padrão (ex.: "lazer") ou repetido (sem diferenciar maiúsculas) mostra mensagem no campo e não cria a categoria. Ao salvar a divisão, nomes repetidos entre categorias personalizadas bloqueiam o salvar.
+
+### CENÁRIO 179: Limite de cinco categorias personalizadas `[M5.10]`
+
+**Resultado esperado:** Com cinco categorias, o campo "Nova categoria" some e aparece "Você chegou ao limite de 5 categorias".
+
+### CENÁRIO 180: Remover categoria apaga o percentual em todos os dias `[M5.10]`
+
+**Resultado esperado:** "Remover" pede confirmação. Ao confirmar e salvar, a categoria sai da lista e o percentual dela desaparece dos dois pagamentos (com dois dias de pagamento, conferir os dois). A soma volta a fechar em 100% sem o valor órfão.
+
+### CENÁRIO 181: Soma com categorias personalizadas `[M5.10]`
+
+**Resultado esperado:** A soma de um dia de pagamento inclui as 4 padrão e todas as personalizadas. Se não fecha em 100%, o salvar é bloqueado com a diferença exata ("Faltam X%" ou "A soma excedeu 100% em X%"), no bloco do dia certo.
+
+### CENÁRIO 182: Documento antigo com "Caixa da Empresa" é migrado `[M5.10]`
+
+**Resultado esperado:** Um documento que ainda tem `companyCashPercent` (formato anterior) abre com a categoria "Caixa da Empresa" e o mesmo percentual, com a soma intacta. Nada é gravado até o usuário salvar; ao salvar, o campo antigo some do Firestore e a categoria passa a ser personalizada como as outras.
 
 ---
 

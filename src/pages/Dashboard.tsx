@@ -15,6 +15,7 @@ import LoadingState from '../components/Common/LoadingState'
 import InvestmentCheckinBanner from '../components/Dashboard/InvestmentCheckinBanner'
 import { updateUserDocument } from '../services/userService'
 import { leverDelta } from '../core/radarView'
+import { DEFAULT_CATEGORY_LABELS } from '../core/distributionCategories'
 import { formatCompactBRL } from '../utils/formatCurrency'
 import { formatPercent } from '../utils/formatPercent'
 
@@ -24,8 +25,10 @@ const SEGMENT_COLORS = {
   education: 'bg-blue-400',
   leisure: 'bg-amber-300',
   investments: 'bg-green-600',
-  companyCash: 'bg-purple-400',
 }
+
+// Categorias personalizadas ganham cores em ordem, na sequência das padrão.
+const CUSTOM_SEGMENT_COLORS = ['bg-purple-400', 'bg-pink-400', 'bg-teal-500', 'bg-orange-400', 'bg-indigo-400']
 
 export default function Dashboard() {
   const { currentUser, user, refreshCurrentUser } = useAuth()
@@ -53,11 +56,15 @@ export default function Dashboard() {
 
   const segments: DistributionSegment[] = distribution.flow && distribution.amounts
     ? [
-        { label: 'Essenciais', value: distribution.amounts.essentials, colorClass: SEGMENT_COLORS.essentials },
-        { label: 'Educação', value: distribution.amounts.education, colorClass: SEGMENT_COLORS.education },
-        { label: 'Lazer', value: distribution.flow.leisureTotal, colorClass: SEGMENT_COLORS.leisure },
-        { label: 'Investimentos', value: distribution.flow.investmentsPlan, colorClass: SEGMENT_COLORS.investments },
-        { label: 'Caixa da Empresa', value: distribution.amounts.companyCash, colorClass: SEGMENT_COLORS.companyCash },
+        { label: DEFAULT_CATEGORY_LABELS.essentials, value: distribution.amounts.essentials, colorClass: SEGMENT_COLORS.essentials },
+        { label: DEFAULT_CATEGORY_LABELS.education, value: distribution.amounts.education, colorClass: SEGMENT_COLORS.education },
+        { label: DEFAULT_CATEGORY_LABELS.leisure, value: distribution.flow.leisureTotal, colorClass: SEGMENT_COLORS.leisure },
+        { label: DEFAULT_CATEGORY_LABELS.investments, value: distribution.flow.investmentsPlan, colorClass: SEGMENT_COLORS.investments },
+        ...distribution.customCategories.map((category, index) => ({
+          label: category.name,
+          value: distribution.amounts?.custom[category.id] ?? 0,
+          colorClass: CUSTOM_SEGMENT_COLORS[index % CUSTOM_SEGMENT_COLORS.length] ?? 'bg-gray-400',
+        })),
       ]
     : []
 

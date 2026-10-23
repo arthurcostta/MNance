@@ -558,7 +558,13 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
 - Diferenças com o vídeo, por convenção: juros do mês 12 saem R$ 62 (sobre o saldo do fim do mês 11, o que é o correto para aporte no fim do mês; o vídeo mostra R$ 68); o primeiro marco cai no mês 67 (5 anos e 7 meses) em vez de 66.
 - Cenários 171–175 em `cenarios-de-teste.md` §24.
 
-**Divisão mensal com porcentagem (22/10/2026): implementado, ainda sem commit.** `DistributionBar` mostra "R$ X · Y%", com Y = fatia ÷ soma dos valores mostrados (`sharePercentLabel` em `core/radarView.ts`). É a % da barra, não a configurada na Distribuição: com o saldo das essenciais roteado, a soma passa da renda, e os % mudam. Cenário 176 em `cenarios-de-teste.md`.
+**Categorias da divisão (22/10/2026): implementado, ainda sem commit.** A "Caixa da Empresa" saiu como campo fixo. Agora todos têm 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e podem criar até 5 personalizadas (nome + % em cada dia de pagamento).
+- Modelo: `Distribution.customCategories` (id + nome) e `PaydaySplit.customPercents` (id → %). Rótulos padrão e regras de nome em `core/distributionCategories.ts`.
+- Migração: documento com `companyCashPercent > 0` abre com a categoria "Caixa da Empresa" (id fixo `caixa-da-empresa`) com o mesmo %. Só grava ao salvar (`resolveStoredDistribution`).
+- UI: `CustomCategoriesEditor.tsx` (criar, renomear, remover com confirmação) e `PaydaySplitFields.tsx` (uma linha de % por categoria). Radar mostra uma fatia por categoria com valor maior que zero.
+- Testes: `distributionCategories.test.ts` e `useDistribution.test.ts` (migração e soma). Cenários 83 (revisado) e 177–182 em `cenarios-de-teste.md`. Verificado no navegador com `qa.rafael`: criar, salvar, recarregar, ver no Radar e remover (conta restaurada).
+
+**Divisão mensal com porcentagem (commit `6bcc890`, em produção desde 22/10/2026).** `DistributionBar` mostra "R$ X · Y%", com Y = fatia ÷ soma dos valores mostrados (`sharePercentLabel` em `core/radarView.ts`). É a % da barra, não a configurada na Distribuição: com o saldo das essenciais roteado, a soma passa da renda, e os % mudam. Cenário 176 em `cenarios-de-teste.md`.
 
 **Gráfico e alavancas legíveis (commit `1b0d0f0`, em produção desde 22/10/2026).** Só apresentação; motor e números não mudam.
 - Legenda com 3 itens (faixa de cenários vira uma entrada só); Meta, prazo e meta atingida são rotulados no próprio gráfico (plugin `radarAnnotations` em `ProjectionChart.tsx`), com versão curta no celular.

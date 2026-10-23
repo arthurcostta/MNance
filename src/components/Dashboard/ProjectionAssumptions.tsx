@@ -270,7 +270,7 @@ export function ProjectionAssumptions({ assumptions, onInflationChange }: Projec
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-gray-600">
             <li>Retornos brutos (sem imposto de renda ou taxas) — veja o cenário conservador.</li>
             <li>Renda e aportes constantes em valores de hoje (sem aumentos reais).</li>
-            <li>Lazer, Educação e Caixa da Empresa não entram na projeção — só o que você investe.</li>
+            <li>Lazer, Educação Pessoal e as outras categorias não entram na projeção — só o que você investe.</li>
             <li>
               Consórcio é tratado só como fluxo de caixa que rende a taxa informada (0%): carta de crédito e
               contemplação não são modeladas.

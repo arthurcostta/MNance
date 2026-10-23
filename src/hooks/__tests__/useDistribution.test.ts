@@ -24,7 +24,7 @@ describe('validateNivelUm', () => {
     educationPercent: 10,
     leisurePercent: 10,
     investmentsPercent: 25,
-    companyCashPercent: 0,
+    customPercents: {},
   }
 
   it('should pass when the sum is exactly 100', () => {
@@ -49,7 +49,7 @@ describe('validateNivelUm', () => {
       educationPercent: 33.33,
       leisurePercent: 33.34,
       investmentsPercent: 0,
-      companyCashPercent: 0,
+      customPercents: {},
     }
     expect(validateNivelUm(input).total).toBeUndefined()
   })
@@ -59,10 +59,21 @@ describe('validateNivelUm', () => {
     expect(validateNivelUm({ ...valid, essentialsPercent: 105 }).essentialsPercent).toBeDefined()
   })
 
-  it('should validate companyCashPercent (5th category, new in M5.5) the same as the other fields', () => {
-    expect(validateNivelUm({ ...valid, companyCashPercent: -1 }).companyCashPercent).toBeDefined()
-    const withCompanyCash = { ...valid, investmentsPercent: 15, companyCashPercent: 10 }
-    expect(Object.keys(validateNivelUm(withCompanyCash)).length).toBe(0)
+  it('should count custom categories in the total and validate each one', () => {
+    const categories = [{ id: 'viagens', name: 'Viagens' }]
+    const fits = { ...valid, investmentsPercent: 20, customPercents: { viagens: 5 } }
+    expect(Object.keys(validateNivelUm(fits, categories)).length).toBe(0)
+
+    const excess = { ...valid, customPercents: { viagens: 5 } }
+    expect(validateNivelUm(excess, categories).total).toBe('A soma excedeu 100% em 5,0%.')
+
+    const negative = { ...valid, investmentsPercent: 20, customPercents: { viagens: -1 } }
+    expect(validateNivelUm(negative, categories).custom?.viagens).toBeDefined()
+  })
+
+  it('should ignore percentages left for categories that no longer exist', () => {
+    const orphan = { ...valid, customPercents: { removida: 30 } }
+    expect(Object.keys(validateNivelUm(orphan, [])).length).toBe(0)
   })
 })
 
@@ -89,7 +100,7 @@ describe('calculateDistributionAmounts', () => {
     educationPercent: 10,
     leisurePercent: 10,
     investmentsPercent: 25,
-    companyCashPercent: 0,
+    customPercents: {},
   }
 
   it('should split monthlyIncomeNet according to each percentage for a single payday', () => {
@@ -98,7 +109,7 @@ describe('calculateDistributionAmounts', () => {
     expect(amounts.education).toBeCloseTo(400, 5)
     expect(amounts.leisure).toBeCloseTo(400, 5)
     expect(amounts.investments).toBeCloseTo(1000, 5)
-    expect(amounts.companyCash).toBeCloseTo(0, 5)
+    expect(amounts.custom).toEqual({})
   })
 
   it('should not produce NaN when monthlyIncomeNet is 0', () => {
@@ -124,14 +135,14 @@ describe('calculateDistributionAmounts', () => {
       educationPercent: 5,
       leisurePercent: 5,
       investmentsPercent: 20,
-      companyCashPercent: 10,
+      customPercents: { cash: 10 },
     }
     const payday2Split: NivelUmInput = {
       essentialsPercent: 40,
       educationPercent: 20,
       leisurePercent: 20,
       investmentsPercent: 20,
-      companyCashPercent: 0,
+      customPercents: {},
     }
     const monthlyIncomeNet = 5000
     const amounts = calculateDistributionAmounts(
@@ -148,7 +159,7 @@ describe('calculateDistributionAmounts', () => {
     const expectedCompanyCash = payday1Income * 0.1
 
     expect(amounts.essentials).toBeCloseTo(expectedEssentials, 5)
-    expect(amounts.companyCash).toBeCloseTo(expectedCompanyCash, 5)
+    expect(amounts.custom.cash).toBeCloseTo(expectedCompanyCash, 5)
   })
 })
 
@@ -191,7 +202,7 @@ describe('resolveStoredDistribution', () => {
         educationPercent: 15,
         leisurePercent: 15,
         investmentsPercent: 20,
-        companyCashPercent: 0,
+        customPercents: {},
       },
       surplusInvestmentsPercent: 70,
     } as unknown as Distribution
@@ -208,7 +219,7 @@ describe('resolveStoredDistribution', () => {
         educationPercent: 10,
         leisurePercent: 10,
         investmentsPercent: 25,
-        companyCashPercent: 0,
+        customPercents: {},
       },
       investmentBuckets: [{ id: 'x', name: 'Casa', percentOfInvestments: 100, allocationModel: 'AGGRESSIVE' }],
     } as unknown as Distribution
@@ -229,6 +240,43 @@ describe('resolveStoredDistribution', () => {
     const resolved = resolveStoredDistribution(null, { hasSecondPayday: true })
     expect(resolved.payday2Split).toBeDefined()
     expect(resolved.payday1IncomeSharePercent).toBe(50)
+  })
+
+  it('should turn the legacy "Caixa da Empresa" value into a custom category, keeping the percentages', () => {
+    const stored = {
+      payday1Split: {
+        essentialsPercent: 55,
+        educationPercent: 10,
+        leisurePercent: 10,
+        investmentsPercent: 15,
+        companyCashPercent: 10,
+      },
+    } as unknown as Distribution
+
+    const resolved = resolveStoredDistribution(stored, context)
+    expect(resolved.customCategories).toEqual([{ id: 'caixa-da-empresa', name: 'Caixa da Empresa' }])
+    expect(resolved.payday1Split.customPercents).toEqual({ 'caixa-da-empresa': 10 })
+    expect('companyCashPercent' in resolved.payday1Split).toBe(false)
+  })
+
+  it('should create no custom category when the legacy value is zero or absent', () => {
+    const stored = {
+      payday1Split: { essentialsPercent: 55, educationPercent: 10, leisurePercent: 10, investmentsPercent: 25, companyCashPercent: 0 },
+    } as unknown as Distribution
+
+    expect(resolveStoredDistribution(stored, context).customCategories).toEqual([])
+    expect(resolveStoredDistribution(stored, context).payday1Split.customPercents).toEqual({})
+  })
+
+  it('should keep an already migrated document intact', () => {
+    const stored = {
+      payday1Split: { essentialsPercent: 50, educationPercent: 10, leisurePercent: 10, investmentsPercent: 15, customPercents: { viagens: 15 } },
+      customCategories: [{ id: 'viagens', name: 'Viagens' }],
+    } as unknown as Distribution
+
+    const resolved = resolveStoredDistribution(stored, context)
+    expect(resolved.customCategories).toEqual([{ id: 'viagens', name: 'Viagens' }])
+    expect(resolved.payday1Split.customPercents).toEqual({ viagens: 15 })
   })
 
   it('should fall back to the default for an old M2 (3-category) or M5 (flat) document', () => {
@@ -273,7 +321,7 @@ describe('calculateMonthlyFlow', () => {
           educationPercent: 10,
           leisurePercent: 10,
           investmentsPercent: 25,
-          companyCashPercent: 0,
+          customPercents: {},
         },
         incomeShareFraction: 1,
       },
@@ -358,7 +406,7 @@ describe('calculateMonthlyFlow', () => {
 
   it('should not produce NaN or Infinity with zero income', () => {
     const zero = calculateDistributionAmounts(
-      [{ split: { essentialsPercent: 55, educationPercent: 10, leisurePercent: 10, investmentsPercent: 25, companyCashPercent: 0 }, incomeShareFraction: 1 }],
+      [{ split: { essentialsPercent: 55, educationPercent: 10, leisurePercent: 10, investmentsPercent: 25, customPercents: {} }, incomeShareFraction: 1 }],
       0
     )
     const flow = calculateMonthlyFlow({ amounts: zero, essentialsReal: 100, hasEssentialsList: true, surplusInvestmentsPercent: 50 })

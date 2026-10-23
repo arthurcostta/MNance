@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { OnboardingData } from '../../../hooks/useOnboarding'
 import type { EmergencyReserveResult } from '../../../core/emergencyReserve'
 import type { Distribution, PaydaySplit } from '../../../types/distribution'
+import { DEFAULT_CATEGORY_LABELS } from '../../../core/distributionCategories'
 import Card from '../../Common/Card'
 
 interface Step5ReviewProps {
@@ -82,13 +83,10 @@ function Block({
 function PaydaySplitRows({ split }: { split: PaydaySplit }) {
   return (
     <>
-      <Row label="Despesas Essenciais" value={`${split.essentialsPercent}%`} />
-      <Row label="Educação" value={`${split.educationPercent}%`} />
-      <Row label="Lazer" value={`${split.leisurePercent}%`} />
-      <Row label="Investimentos" value={`${split.investmentsPercent}%`} />
-      {split.companyCashPercent > 0 && (
-        <Row label="Caixa da Empresa" value={`${split.companyCashPercent}%`} />
-      )}
+      <Row label={DEFAULT_CATEGORY_LABELS.essentials} value={`${split.essentialsPercent}%`} />
+      <Row label={DEFAULT_CATEGORY_LABELS.education} value={`${split.educationPercent}%`} />
+      <Row label={DEFAULT_CATEGORY_LABELS.leisure} value={`${split.leisurePercent}%`} />
+      <Row label={DEFAULT_CATEGORY_LABELS.investments} value={`${split.investmentsPercent}%`} />
     </>
   )
 }
@@ -171,9 +169,8 @@ export default function Step5Review({
           )}
 
           <p className="mt-3 text-gray-600">
-            Começamos com <strong>55% essenciais, 10% educação, 10% lazer e 25% investimentos</strong> —
-            e Caixa da Empresa disponível para quem precisar, ajustável depois na tela de
-            Distribuição de Renda.
+            Começamos com <strong>55% despesas, 10% educação pessoal, 10% lazer e 25% investimentos</strong>.
+            Você pode criar outras categorias depois, na tela de Distribuição de Renda.
           </p>
         </Card>
       )}

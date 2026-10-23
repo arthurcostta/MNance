@@ -1,18 +1,18 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Distribution, PaydaySplit } from '../types/distribution'
+import type { Distribution, PaydaySplit, StoredDistribution } from '../types/distribution'
 
-// Default de cada dia de pagamento: 55/10/10/25 (essenciais/educação/lazer/investimentos),
-// fiel ao PRD §5, com companyCashPercent: 0 — decisão M5.5 corrigida em sessão: a 5ª
-// categoria nasce zerada para não piorar o default de quem não tem empresa (a maioria).
-// Quem precisar (como o usuário que pediu a feature) ajusta manualmente na tela de
-// Distribuição, reduzindo as outras categorias — nada é auto-rebalanceado.
-const DEFAULT_PAYDAY_SPLIT: PaydaySplit = {
-  essentialsPercent: 55,
-  educationPercent: 10,
-  leisurePercent: 10,
-  investmentsPercent: 25,
-  companyCashPercent: 0,
+// Default de cada dia de pagamento: 55/10/10/25 (despesas/educação pessoal/lazer/investimentos),
+// fiel ao PRD §5, sem categorias personalizadas. Quem precisa de outra categoria (ex.: Caixa da
+// Empresa) cria na tela de Distribuição, reduzindo as outras — nada é auto-rebalanceado.
+function defaultSplit(): PaydaySplit {
+  return {
+    essentialsPercent: 55,
+    educationPercent: 10,
+    leisurePercent: 10,
+    investmentsPercent: 25,
+    customPercents: {},
+  }
 }
 
 // `hasSecondPayday` reflete User.payday2 — quando existe, popula um 2º PaydaySplit (mesmo
@@ -20,9 +20,10 @@ const DEFAULT_PAYDAY_SPLIT: PaydaySplit = {
 // (surplusInvestmentsPercent) nasce ausente de propósito: "decisão pendente".
 export function getDefaultDistribution(hasSecondPayday: boolean): Omit<Distribution, 'updatedAt'> {
   return {
-    payday1Split: { ...DEFAULT_PAYDAY_SPLIT },
+    payday1Split: defaultSplit(),
+    customCategories: [],
     ...(hasSecondPayday
-      ? { payday2Split: { ...DEFAULT_PAYDAY_SPLIT }, payday1IncomeSharePercent: 50 }
+      ? { payday2Split: defaultSplit(), payday1IncomeSharePercent: 50 }
       : {}),
   }
 }
@@ -31,9 +32,9 @@ function distributionRef(uid: string) {
   return doc(db, 'users', uid, 'distribution', 'current')
 }
 
-export async function getDistribution(uid: string): Promise<Distribution | null> {
+export async function getDistribution(uid: string): Promise<StoredDistribution | null> {
   const snap = await getDoc(distributionRef(uid))
-  return snap.exists() ? (snap.data() as Distribution) : null
+  return snap.exists() ? (snap.data() as StoredDistribution) : null
 }
 
 export async function setDistribution(
