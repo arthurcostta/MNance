@@ -556,6 +556,7 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
 - Núcleo puro: `core/contributionGrowth.ts` (`simulateContributionGrowth`, `validateGrowthInput`; convenção de aporte no fim do mês, igual a `calculateCompoundInterest`). Testes em `contributionGrowth.test.ts`, com o caso de referência do vídeo (R$ 500, 13,65%, 21 anos → R$ 638.436).
 - UI: `components/Investments/ContributionGrowthCard.tsx` e `ContributionGrowthChart.tsx` (barras empilhadas, eixo com `niceAxis`). `useInvestments` expõe `realReturnRate`.
 - Diferenças com o vídeo, por convenção: juros do mês 12 saem R$ 62 (sobre o saldo do fim do mês 11, o que é o correto para aporte no fim do mês; o vídeo mostra R$ 68); o primeiro marco cai no mês 67 (5 anos e 7 meses) em vez de 66.
+- Totais no celular (04/11/2026): os 3 cartões (bolso, juros, total) empilham em uma coluna abaixo de `sm`, com o valor completo e sem quebra (`TotalTile`); eram 3 colunas e os valores estouravam o cartão em 390 px. Ainda sem commit.
 - Cenários 171–175 em `cenarios-de-teste.md` §24.
 
 **Categorias da divisão (22/10/2026): implementado, ainda sem commit.** A "Caixa da Empresa" saiu como campo fixo. Agora todos têm 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e podem criar até 5 personalizadas (nome + % em cada dia de pagamento).

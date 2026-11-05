@@ -2448,7 +2448,7 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 ### CENÁRIO 175: Celular (390 px) sem rolagem horizontal `[Investimentos]`
 
-**Resultado esperado:** Os três totais cabem em uma linha, o gráfico de barras e a legenda não cortam valores e a página não rola para os lados.
+**Resultado esperado:** Os três totais (Saiu do bolso, Juros, Total) aparecem empilhados, um por linha, com o rótulo à esquerda e o valor completo à direita, sem sair do cartão (conferir também com 50 anos, valores acima de R$ 5 mi, e em 360 px). A partir de 640 px voltam a ficar três cartões lado a lado. O gráfico de barras e a legenda não cortam valores e a página não rola para os lados.
 
 ### CENÁRIO 176: Porcentagem em cada item da Divisão mensal `[Radar · 22/10/2026]`
 

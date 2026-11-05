@@ -18,6 +18,15 @@ interface ContributionGrowthCardProps {
 
 const clampYears = (years: number) => Math.min(MAX_GROWTH_YEARS, Math.max(1, Math.round(years)))
 
+function TotalTile({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded border border-gray-200 p-2 sm:block">
+      <p className="text-xs text-gray-600">{label}</p>
+      <p className={`whitespace-nowrap text-sm font-semibold ${valueClassName}`}>{value}</p>
+    </div>
+  )
+}
+
 // Simulador educativo: mostra como o aporte se multiplica com os juros. Começa do zero (não usa o patrimônio atual).
 export default function ContributionGrowthCard({
   initialMonthlyContribution,
@@ -100,19 +109,11 @@ export default function ContributionGrowthCard({
 
         {result && (
           <>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded border border-gray-200 p-2">
-                <p className="text-xs text-gray-600">Saiu do bolso</p>
-                <p className="text-sm font-semibold">{formatBRL(result.totals.contributed)}</p>
-              </div>
-              <div className="rounded border border-gray-200 p-2">
-                <p className="text-xs text-gray-600">Juros</p>
-                <p className="text-sm font-semibold text-green-700">{formatBRL(result.totals.interest)}</p>
-              </div>
-              <div className="rounded border border-gray-200 p-2">
-                <p className="text-xs text-gray-600">Total</p>
-                <p className="text-sm font-semibold">{formatBRL(result.totals.total)}</p>
-              </div>
+            {/* Celular: uma linha por total (rótulo à esquerda, valor completo à direita). A partir de sm: três cartões lado a lado. */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:text-center">
+              <TotalTile label="Saiu do bolso" value={formatBRL(result.totals.contributed)} />
+              <TotalTile label="Juros" value={formatBRL(result.totals.interest)} valueClassName="text-green-700" />
+              <TotalTile label="Total" value={formatBRL(result.totals.total)} />
             </div>
 
             <p className="text-sm text-gray-800">
