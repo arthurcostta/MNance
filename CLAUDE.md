@@ -559,7 +559,15 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
 - Totais no celular (04/11/2026): os 3 cartões (bolso, juros, total) empilham em uma coluna abaixo de `sm`, com o valor completo e sem quebra (`TotalTile`); eram 3 colunas e os valores estouravam o cartão em 390 px. Ainda sem commit.
 - Cenários 171–175 em `cenarios-de-teste.md` §24.
 
-**Categorias da divisão (22/10/2026): implementado, ainda sem commit.** A "Caixa da Empresa" saiu como campo fixo. Agora todos têm 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e podem criar até 5 personalizadas (nome + % em cada dia de pagamento).
+**Check-in de Investimentos e Portfólio (19/11/2026): implementado, ainda sem commit.** Relato: aporte lançado em 16/11 não apareceu no Portfólio. Reprodução na conta `qa.rafael` (fluxo do relato, dois dias, dois ativos): o saldo subiu exatamente o valor lançado, no ativo certo e no total. A causa do caso real não foi reproduzida; o caminho testado funciona.
+- Aporte continua SOMANDO ao saldo do ativo (regra confirmada pelo usuário). `applyCheckinToAssets` (core) calcula o antes → depois por ativo; `confirmCheckin` devolve isso e o fechamento lista cada ativo.
+- Após gravar, o app relê do servidor e confere cada saldo (`findMissingCheckinUpdates`); divergência vira alerta vermelho.
+- `getAssets` sempre pede ao servidor (`getDocsFromServer`) e só usa o cache se estiver offline.
+- "Hoje" é atualizado ao voltar ao foco (`focus`/`visibilitychange`); o check-in usa a data do clique.
+- "Não investi" pode ser refeito (`reopenSkippedCheckin` apaga só o `skipped`). Confirmado nunca é removido.
+- Cenários 183–187. Testes: `checkin.test.ts` (23 no arquivo).
+
+**Categorias da divisão (commit `d0e1f1d`, em produção desde 22/10/2026).** A "Caixa da Empresa" saiu como campo fixo. Agora todos têm 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e podem criar até 5 personalizadas (nome + % em cada dia de pagamento).
 - Modelo: `Distribution.customCategories` (id + nome) e `PaydaySplit.customPercents` (id → %). Rótulos padrão e regras de nome em `core/distributionCategories.ts`.
 - Migração: documento com `companyCashPercent > 0` abre com a categoria "Caixa da Empresa" (id fixo `caixa-da-empresa`) com o mesmo %. Só grava ao salvar (`resolveStoredDistribution`).
 - UI: `CustomCategoriesEditor.tsx` (criar, renomear, remover com confirmação) e `PaydaySplitFields.tsx` (uma linha de % por categoria). Radar mostra uma fatia por categoria com valor maior que zero.

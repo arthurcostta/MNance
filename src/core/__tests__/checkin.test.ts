@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
+  applyCheckinToAssets,
   calculateAdherence,
   calculateGuidedContribution,
   deriveCheckinStatus,
+  findMissingCheckinUpdates,
   splitPlanAcrossDays,
 } from '../checkin'
 
@@ -127,5 +129,59 @@ describe('calculateGuidedContribution', () => {
       alternatives: 0,
       cash: 0,
     })
+  })
+})
+
+describe('applyCheckinToAssets', () => {
+  const assets = [
+    { id: 'ivvb', name: 'IVVB11', currentValue: 6291 },
+    { id: 'cdb', name: 'CDB Banco X', currentValue: 1000.1 },
+    { id: 'tesouro', name: 'Tesouro Selic', currentValue: 0 },
+  ]
+
+  it('soma o valor investido ao saldo de cada ativo, sem sobrescrever', () => {
+    const updates = applyCheckinToAssets(assets, [
+      { assetId: 'ivvb', invested: 100 },
+      { assetId: 'tesouro', invested: 250.5 },
+    ])
+    expect(updates).toEqual([
+      { assetId: 'ivvb', name: 'IVVB11', before: 6291, after: 6391 },
+      { assetId: 'tesouro', name: 'Tesouro Selic', before: 0, after: 250.5 },
+    ])
+  })
+
+  it('arredonda a centavos e ignora valores zero', () => {
+    const updates = applyCheckinToAssets(assets, [
+      { assetId: 'cdb', invested: 0.2 },
+      { assetId: 'ivvb', invested: 0 },
+    ])
+    expect(updates).toHaveLength(1)
+    expect(updates[0]?.after).toBe(1000.3)
+  })
+
+  it('ignora entradas de ativos que não existem na lista', () => {
+    expect(applyCheckinToAssets(assets, [{ assetId: 'sumiu', invested: 50 }])).toEqual([])
+  })
+})
+
+describe('findMissingCheckinUpdates', () => {
+  const expected = [
+    { assetId: 'ivvb', name: 'IVVB11', before: 6291, after: 6391 },
+    { assetId: 'cdb', name: 'CDB Banco X', before: 1000, after: 1200 },
+  ]
+
+  it('não aponta nada quando o servidor já tem o saldo esperado', () => {
+    const actual = [
+      { id: 'ivvb', name: 'IVVB11', currentValue: 6391 },
+      { id: 'cdb', name: 'CDB Banco X', currentValue: 1200.004 },
+    ]
+    expect(findMissingCheckinUpdates(expected, actual)).toEqual([])
+  })
+
+  it('aponta o ativo cujo saldo ficou para trás ou que sumiu', () => {
+    const actual = [
+      { id: 'ivvb', name: 'IVVB11', currentValue: 6291 },
+    ]
+    expect(findMissingCheckinUpdates(expected, actual)).toEqual(['IVVB11', 'CDB Banco X'])
   })
 })

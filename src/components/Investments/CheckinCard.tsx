@@ -20,6 +20,7 @@ interface CheckinCardProps {
   submitError: string | null
   onConfirm: (submission: SlotSubmission) => void
   onSkip: () => void
+  onReopen: () => void
 }
 
 const STATUS_LABEL = {
@@ -39,6 +40,7 @@ export default function CheckinCard({
   submitError,
   onConfirm,
   onSkip,
+  onReopen,
 }: CheckinCardProps) {
   const [values, setValues] = useState<Record<string, number>>(() =>
     Object.fromEntries(rows.map((r) => [r.assetId, r.planned]))
@@ -80,6 +82,14 @@ export default function CheckinCard({
               </li>
             ))}
           </ul>
+        )}
+        {/* Só o "Não investi" pode ser refeito: um aporte confirmado já mexeu nos ativos. */}
+        {c.status === 'skipped' && (
+          <div className="mt-3">
+            <Button variant="secondary" type="button" onClick={onReopen} disabled={submitting}>
+              Refazer este dia
+            </Button>
+          </div>
         )}
       </Card>
     )

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from './useAuth'
 import { usePortfolio } from './usePortfolio'
 import { useDistribution } from './useDistribution'
@@ -9,14 +9,26 @@ import {
   effectiveInvestmentDay,
   type CalendarDate,
 } from '../core/businessDays'
-import { calculateAdherence, splitPlanAcrossDays, type AnsweredCheckin } from '../core/checkin'
+import {
+  calculateAdherence,
+  findMissingCheckinUpdates,
+  splitPlanAcrossDays,
+  type AnsweredCheckin,
+  type AssetCheckinUpdate,
+} from '../core/checkin'
 import {
   formatYearMonth,
   isContributionActive,
   resolveRemainingMonths,
   type YearMonth,
 } from '../core/installments'
-import { checkinIdFor, confirmCheckin, skipCheckin, type CheckinEntry } from '../services/checkinService'
+import {
+  checkinIdFor,
+  confirmCheckin,
+  reopenSkippedCheckin,
+  skipCheckin,
+  type CheckinEntry,
+} from '../services/checkinService'
 import { getAssets } from '../services/assetService'
 import type { InvestmentCheckinWithId, NewAssetDraft } from '../types/checkin'
 import type { AssetWithId } from '../types/asset'
@@ -106,7 +118,7 @@ export function answeredHistory(checkins: InvestmentCheckinWithId[]): AnsweredCh
     .map((c) => ({ plannedTotal: c.plannedTotal, investedTotal: c.investedTotal, status: c.status }))
 }
 
-export interface CheckinEffect {
+export interface CheckinEffectSummary {
   // true quando "antes" era só a estimativa do onboarding (conta sem ativos).
   estimatedBefore: boolean
   adherenceBefore: number
@@ -120,6 +132,13 @@ export interface CheckinEffect {
   reachableAfter: boolean
   goalAmount: number
   goalYears: number
+}
+
+// Fechamento de um check-in: o resumo do Radar + o saldo de cada ativo antes/depois + os ativos cujo
+// saldo, lido de volta do servidor, não bate com o que foi gravado (vazio = tudo certo).
+export interface CheckinEffect extends CheckinEffectSummary {
+  updates: AssetCheckinUpdate[]
+  missingAssets: string[]
 }
 
 export interface CheckinEffectInput {
@@ -143,7 +162,7 @@ const patrimonyOf = (assets: AssetWithId[], estimate: number) =>
 
 // Antes × depois de um check-in, pelo mesmo motor do Radar: o "tempo até a meta" mostrado no
 // fechamento bate com o que o Radar vai mostrar a seguir.
-export function summarizeCheckinEffect(input: CheckinEffectInput): CheckinEffect {
+export function summarizeCheckinEffect(input: CheckinEffectInput): CheckinEffectSummary {
   const snapshot = (assets: AssetWithId[], checkins: InvestmentCheckinWithId[]) => {
     const adherence = calculateAdherence(answeredHistory(checkins))
     const metrics = buildProjectionMetrics({
@@ -210,7 +229,22 @@ export function useInvestments(uid: string | undefined) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [lastEffect, setLastEffect] = useState<CheckinEffect | null>(null)
 
-  const today = useMemo(() => todayCalendar(), [])
+  // "Hoje" acompanha o relógio: um app aberto por dias (ou no segundo plano do celular) não pode
+  // mostrar o mês antigo nem gravar o check-in no mês errado.
+  const [today, setToday] = useState<CalendarDate>(todayCalendar)
+  useEffect(() => {
+    const refreshToday = () =>
+      setToday((previous) => {
+        const now = todayCalendar()
+        return compareCalendarDates(previous, now) === 0 ? previous : now
+      })
+    window.addEventListener('focus', refreshToday)
+    document.addEventListener('visibilitychange', refreshToday)
+    return () => {
+      window.removeEventListener('focus', refreshToday)
+      document.removeEventListener('visibilitychange', refreshToday)
+    }
+  }, [])
   const investmentDays = useMemo(
     () => [...(currentUser?.investmentDays ?? [])].sort((a, b) => a - b),
     [currentUser?.investmentDays]
@@ -255,27 +289,36 @@ export function useInvestments(uid: string | undefined) {
           })),
         ]
 
-        await confirmCheckin(uid, {
-          month: monthKey,
+        // Mês do clique, não o do carregamento da tela: o check-in grava onde o usuário está agora.
+        const now = todayCalendar()
+        const nowMonth: YearMonth = { year: now.year, month: now.month }
+        const updates = await confirmCheckin(uid, {
+          month: formatYearMonth(nowMonth),
           slot: submission.slot,
           day: slot.effective.day,
           plannedTotal: submission.plannedTotal,
           entries,
         })
 
+        // Relê do servidor e confere se cada saldo gravado chegou ao Portfólio.
         const afterAssets = ((await portfolio.refresh()) ?? (await getAssets(uid))).filter(
           (a) => a.status === 'active'
         )
+        const missingAssets = findMissingCheckinUpdates(updates, afterAssets)
         const afterCheckins = (await checkinState.refresh()) ?? beforeCheckins
-        const effect = summarizeCheckinEffect({
-          beforeAssets,
-          afterAssets,
-          beforeCheckins,
-          afterCheckins,
-          currentUser,
-          investmentsPlan,
-          today: monthYm,
-        })
+        const effect: CheckinEffect = {
+          ...summarizeCheckinEffect({
+            beforeAssets,
+            afterAssets,
+            beforeCheckins,
+            afterCheckins,
+            currentUser,
+            investmentsPlan,
+            today: nowMonth,
+          }),
+          updates,
+          missingAssets,
+        }
         setLastEffect(effect)
         return effect
       } catch (error) {
@@ -285,7 +328,28 @@ export function useInvestments(uid: string | undefined) {
         setSubmitting(false)
       }
     },
-    [uid, currentUser, portfolio, checkinState, monthKey, investmentsPlan, monthYm]
+    [uid, currentUser, portfolio, checkinState, investmentsPlan]
+  )
+
+  // Refazer um dia marcado como "Não investi": apaga o registro e o dia volta a aceitar resposta.
+  const reopen = useCallback(
+    async (slot: CheckinSlot): Promise<boolean> => {
+      if (!uid) return false
+      setSubmitting(true)
+      setSubmitError(null)
+      try {
+        const now = todayCalendar()
+        await reopenSkippedCheckin(uid, { month: formatYearMonth({ year: now.year, month: now.month }), slot: slot.slot })
+        await checkinState.refresh()
+        return true
+      } catch (error) {
+        setSubmitError(error instanceof Error ? error.message : 'Não foi possível refazer o dia.')
+        return false
+      } finally {
+        setSubmitting(false)
+      }
+    },
+    [uid, checkinState]
   )
 
   const skip = useCallback(
@@ -344,6 +408,7 @@ export function useInvestments(uid: string | undefined) {
     clearLastEffect: () => setLastEffect(null),
     confirm,
     skip,
+    reopen,
     refreshAssets: portfolio.refresh,
   }
 }

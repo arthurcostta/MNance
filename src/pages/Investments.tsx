@@ -123,40 +123,61 @@ export default function Investments() {
       )}
 
       {inv.lastEffect && (
-        <Card className="border-green-200 bg-green-50">
-          <p className="font-medium">Aportes registrados</p>
-          <p className="mt-2 text-sm">
-            Patrimônio: {formatBRL(inv.lastEffect.patrimonyBefore)}
-            {inv.lastEffect.estimatedBefore && <span className="text-xs text-gray-500"> (estimativa do onboarding)</span>}
-            {' → '}
-            <strong>{formatBRL(inv.lastEffect.patrimonyAfter)}</strong>
-          </p>
-          <p className="text-sm">
-            Tempo até a meta:{' '}
-            {inv.lastEffect.reachableBefore && inv.lastEffect.yearsBefore !== null
-              ? `${inv.lastEffect.yearsBefore.toFixed(1)} anos`
-              : 'mais de 60 anos'}{' '}
-            →{' '}
-            <strong>
-              {inv.lastEffect.reachableAfter && inv.lastEffect.yearsAfter !== null
-                ? `${inv.lastEffect.yearsAfter.toFixed(1)} anos`
-                : 'mais de 60 anos'}
-            </strong>
-          </p>
-          {Math.round(inv.lastEffect.adherenceBefore * 100) !== Math.round(inv.lastEffect.adherenceAfter * 100) && (
-            <p className="mt-2 text-xs text-gray-600">
-              Sua aderência foi de {formatPercent(inv.lastEffect.adherenceBefore * 100)} para{' '}
-              {formatPercent(inv.lastEffect.adherenceAfter * 100)}. A projeção usa essa média nos aportes futuros,
-              por isso o prazo pode mudar mesmo com mais patrimônio.
-            </p>
+        <>
+          {inv.lastEffect.missingAssets.length > 0 && (
+            <Alert variant="error">
+              Registrado, mas o Portfólio ainda não reflete o aporte de {inv.lastEffect.missingAssets.join(', ')}.
+              Atualize a página e confira o Portfólio antes de seguir.
+            </Alert>
           )}
-          <div className="mt-3 flex gap-3 text-sm">
-            <Link to="/" className="font-medium underline">Ver no Radar</Link>
-            <button type="button" className="underline" onClick={inv.clearLastEffect}>
-              Fechar
-            </button>
-          </div>
-        </Card>
+          <Card className="border-green-200 bg-green-50">
+            <p className="font-medium">Aportes registrados</p>
+            {inv.lastEffect.updates.length > 0 && (
+              <ul className="mt-2 space-y-1 text-sm">
+                {inv.lastEffect.updates.map((u) => (
+                  <li key={u.assetId} className="flex justify-between gap-2">
+                    <span>{u.name}</span>
+                    <span className="whitespace-nowrap">
+                      {formatBRL(u.before)} → <strong>{formatBRL(u.after)}</strong>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-sm">
+              Patrimônio: {formatBRL(inv.lastEffect.patrimonyBefore)}
+              {inv.lastEffect.estimatedBefore && <span className="text-xs text-gray-500"> (estimativa do onboarding)</span>}
+              {' → '}
+              <strong>{formatBRL(inv.lastEffect.patrimonyAfter)}</strong>
+            </p>
+            <p className="text-sm">
+              Tempo até a meta:{' '}
+              {inv.lastEffect.reachableBefore && inv.lastEffect.yearsBefore !== null
+                ? `${inv.lastEffect.yearsBefore.toFixed(1)} anos`
+                : 'mais de 60 anos'}{' '}
+              →{' '}
+              <strong>
+                {inv.lastEffect.reachableAfter && inv.lastEffect.yearsAfter !== null
+                  ? `${inv.lastEffect.yearsAfter.toFixed(1)} anos`
+                  : 'mais de 60 anos'}
+              </strong>
+            </p>
+            {Math.round(inv.lastEffect.adherenceBefore * 100) !== Math.round(inv.lastEffect.adherenceAfter * 100) && (
+              <p className="mt-2 text-xs text-gray-600">
+                Sua aderência foi de {formatPercent(inv.lastEffect.adherenceBefore * 100)} para{' '}
+                {formatPercent(inv.lastEffect.adherenceAfter * 100)}. A projeção usa essa média nos aportes futuros,
+                por isso o prazo pode mudar mesmo com mais patrimônio.
+              </p>
+            )}
+            <div className="mt-3 flex gap-3 text-sm">
+              <Link to="/portfolio" className="font-medium underline">Ver no Portfólio</Link>
+              <Link to="/" className="font-medium underline">Ver no Radar</Link>
+              <button type="button" className="underline" onClick={inv.clearLastEffect}>
+                Fechar
+              </button>
+            </div>
+          </Card>
+        </>
       )}
 
       {inv.investmentDays.length > 0 || currentUser.investmentDayPromptAnswered ? (
@@ -194,6 +215,7 @@ export default function Investments() {
               submitError={inv.submitError}
               onConfirm={(submission: SlotSubmission) => void inv.confirm(submission, slot)}
               onSkip={() => void inv.skip(slot)}
+              onReopen={() => void inv.reopen(slot)}
             />
           )
         })}

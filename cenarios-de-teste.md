@@ -1395,6 +1395,28 @@ divisão ganha a fatia "Caixa da Empresa" com o seu %. No passo 5 ela **some**, 
 
 **Resultado esperado:** Um documento que ainda tem `companyCashPercent` (formato anterior) abre com a categoria "Caixa da Empresa" e o mesmo percentual, com a soma intacta. Nada é gravado até o usuário salvar; ao salvar, o campo antigo some do Firestore e a categoria passa a ser personalizada como as outras.
 
+### CENÁRIO 183: Aporte soma ao saldo de cada ativo `[M5.9 · 19/11/2026]`
+
+**Pré-condições:** Dois ativos no Portfólio (ex.: IVVB11 e Tesouro Selic) e um dia de investir aberto.
+**Passos:** Lançar R$ 100 em um ativo e R$ 50 em outro, confirmar, abrir o Portfólio.
+**Resultado esperado:** Cada ativo sobe exatamente o valor lançado (sem substituir o saldo), o total do Portfólio sobe a soma dos dois e o Radar mostra o mesmo patrimônio. No cartão "Aportes registrados", cada ativo aparece com "R$ antes → R$ depois" e o patrimônio do fechamento bate com o Portfólio.
+
+### CENÁRIO 184: Divergência entre o check-in e o Portfólio aparece na hora `[M5.9 · 19/11/2026]`
+
+**Resultado esperado:** Se um saldo gravado não chegar ao Portfólio na releitura do servidor, o fechamento mostra um alerta vermelho com o nome do ativo ("Registrado, mas o Portfólio ainda não reflete o aporte de …") no lugar de uma confirmação de sucesso. Coberto por `findMissingCheckinUpdates` (`core/__tests__/checkin.test.ts`).
+
+### CENÁRIO 185: "Não investi" pode ser refeito `[M5.9 · 19/11/2026]`
+
+**Resultado esperado:** Um dia marcado como "Não investi" mostra o botão "Refazer este dia". Ao tocar, o registro some e o dia volta a aceitar aportes, sem mudar nenhum ativo. Um dia confirmado (com aportes) **não** mostra o botão.
+
+### CENÁRIO 186: Mês e dia seguem o relógio, não a abertura da tela `[M5.9 · 19/11/2026]`
+
+**Resultado esperado:** Com o app aberto de um dia para o outro (ou voltando do segundo plano), o "hoje" da tela é atualizado ao voltar ao foco. O check-in confirmado é gravado no mês em que a confirmação acontece.
+
+### CENÁRIO 187: Leitura do Portfólio vem do servidor `[M5.9 · 19/11/2026]`
+
+**Resultado esperado:** Depois de confirmar um aporte, o Portfólio mostra o saldo do servidor (não o cache local). Sem conexão, a tela ainda abre com o último saldo conhecido, sem erro.
+
 ---
 
 ### CENÁRIO 84: Cada pagamento valida a própria soma `[M5.5]`

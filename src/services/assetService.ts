@@ -3,6 +3,7 @@ import {
   deleteField,
   doc,
   getDocs,
+  getDocsFromServer,
   addDoc,
   updateDoc,
   serverTimestamp,
@@ -27,8 +28,11 @@ export type AssetUpdate = Partial<
   contributionEndsAt?: string | null
 }
 
+// Sempre pede ao servidor: o cache local pode ter o saldo de antes de um aporte. Só cai para o cache
+// quando o aparelho está offline (getDocsFromServer falha nesse caso).
 export async function getAssets(uid: string): Promise<AssetWithId[]> {
-  const querySnapshot = await getDocs(assetsCollectionRef(uid))
+  const ref = assetsCollectionRef(uid)
+  const querySnapshot = await getDocsFromServer(ref).catch(() => getDocs(ref))
   return querySnapshot.docs.map((snap) => ({
     id: snap.id,
     ...snap.data(),

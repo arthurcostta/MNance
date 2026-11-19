@@ -89,3 +89,53 @@ export function calculateGuidedContribution(
   result[largest] = roundCents(result[largest] + (amount - allocated))
   return result
 }
+
+export interface AssetBalance {
+  id: string
+  name: string
+  currentValue: number
+}
+
+export interface AssetCheckinEntry {
+  assetId: string
+  invested: number
+}
+
+// Saldo de cada ativo depois de um check-in: soma o valor investido ao saldo atual, em centavos.
+// Entradas com valor zero e ativos fora da lista são ignorados (nada a atualizar).
+export interface AssetCheckinUpdate {
+  assetId: string
+  name: string
+  before: number
+  after: number
+}
+
+export function applyCheckinToAssets(assets: AssetBalance[], entries: AssetCheckinEntry[]): AssetCheckinUpdate[] {
+  const byId = new Map(assets.map((asset) => [asset.id, asset]))
+  return entries
+    .filter((entry) => entry.invested > 0 && byId.has(entry.assetId))
+    .map((entry) => {
+      const asset = byId.get(entry.assetId)!
+      return {
+        assetId: asset.id,
+        name: asset.name,
+        before: asset.currentValue,
+        after: roundCents(asset.currentValue + entry.invested),
+      }
+    })
+}
+
+// Confere, depois da gravação, se cada ativo do check-in tem o saldo esperado no servidor. Devolve os nomes
+// que não batem (vazio = tudo certo). Tolerância de meio centavo, para o arredondamento do Firestore.
+export function findMissingCheckinUpdates(
+  expected: AssetCheckinUpdate[],
+  actualAssets: AssetBalance[]
+): string[] {
+  const byId = new Map(actualAssets.map((asset) => [asset.id, asset]))
+  return expected
+    .filter((update) => {
+      const actual = byId.get(update.assetId)
+      return !actual || Math.abs(actual.currentValue - update.after) >= 0.005
+    })
+    .map((update) => update.name)
+}
