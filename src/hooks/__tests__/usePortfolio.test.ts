@@ -1,5 +1,32 @@
 import { describe, it, expect } from 'vitest'
-import { calculateCommittedContribution, validateAssetForm, type AssetFormInput } from '../usePortfolio'
+import { calculateCommittedContribution, splitByGrowth, validateAssetForm, type AssetFormInput } from '../usePortfolio'
+
+describe('splitByGrowth', () => {
+  const assets = [
+    { name: 'Tesouro', currentValue: 20_000 },
+    { name: 'Consórcio', currentValue: 10_000, excludedFromGrowth: true },
+    { name: 'CDB', currentValue: 5_000, excludedFromGrowth: false },
+  ]
+
+  it('separa os ativos que contam dos que ficam fora do crescimento', () => {
+    const split = splitByGrowth(assets)
+    expect(split.growth.map((a) => a.name)).toEqual(['Tesouro', 'CDB'])
+    expect(split.excluded.map((a) => a.name)).toEqual(['Consórcio'])
+  })
+
+  it('soma cada lado separadamente', () => {
+    const split = splitByGrowth(assets)
+    expect(split.growthValue).toBe(25_000)
+    expect(split.excludedValue).toBe(10_000)
+  })
+
+  it('sem nenhum ativo fora do crescimento, tudo conta', () => {
+    const split = splitByGrowth([{ name: 'Tesouro', currentValue: 1_000 }])
+    expect(split.excluded).toEqual([])
+    expect(split.excludedValue).toBe(0)
+    expect(split.growthValue).toBe(1_000)
+  })
+})
 
 describe('validateAssetForm', () => {
   const validInput: AssetFormInput = {

@@ -41,6 +41,7 @@ export default function AssetForm({
     expectedReturnRatePercent: initialValue ? initialValue.expectedReturnRate * 100 : 0,
     instrumentKey: undefined,
     monthlyContribution: initialValue?.monthlyContribution ?? 0,
+    excludedFromGrowth: initialValue?.excludedFromGrowth ?? false,
   })
 
   // Parcelas em texto: um input numérico controlado descarta o que o usuário digita no meio da edição.
@@ -90,6 +91,8 @@ export default function AssetForm({
         instrumentKey: key,
         assetClass: rate.assetClass,
         expectedReturnRatePercent: rate.annualRate * 100,
+        // Consórcio costuma ser para comprar um bem: já vem fora do crescimento (o usuário pode desmarcar).
+        excludedFromGrowth: key === 'CONSORCIO' ? true : prev.excludedFromGrowth,
       }))
       setErrors((prev) => ({
         ...prev,
@@ -182,6 +185,22 @@ export default function AssetForm({
           />
         )}
       </FormField>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={input.excludedFromGrowth ?? false}
+          onChange={(e) => setInput((prev) => ({ ...prev, excludedFromGrowth: e.target.checked }))}
+          className="mt-1"
+        />
+        <span>
+          Não conta para o crescimento do patrimônio
+          <span className="block text-xs text-gray-600">
+            Para o que você investe para comprar um bem (ex.: consórcio imobiliário). Continua na lista e, se tiver
+            parcela, ainda sai da sua fatia de Investimentos.
+          </span>
+        </span>
+      </label>
 
       <fieldset className="space-y-3 rounded border border-gray-200 p-3">
         <legend className="px-1 text-sm font-medium">Aporte mensal programado (opcional)</legend>

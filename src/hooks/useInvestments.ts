@@ -156,9 +156,12 @@ export interface CheckinEffectInput {
 
 // Arquivados ficam no Firestore e não compõem patrimônio nem projeção (mesma regra do usePortfolio).
 const activeOnly = (assets: AssetWithId[]) => assets.filter((a) => a.status === 'active')
+// Fora do crescimento (ex.: consórcio imobiliário) não compõe o patrimônio, mas o dinheiro dele conta como investido.
+const growthOnly = (assets: AssetWithId[]) => activeOnly(assets).filter((a) => !a.excludedFromGrowth)
 const sumValues = (assets: AssetWithId[]) => activeOnly(assets).reduce((sum, a) => sum + a.currentValue, 0)
+const growthTotal = (assets: AssetWithId[]) => growthOnly(assets).reduce((sum, a) => sum + a.currentValue, 0)
 const patrimonyOf = (assets: AssetWithId[], estimate: number) =>
-  activeOnly(assets).length > 0 ? sumValues(assets) : estimate
+  growthOnly(assets).length > 0 ? growthTotal(assets) : estimate
 
 // Antes × depois de um check-in, pelo mesmo motor do Radar: o "tempo até a meta" mostrado no
 // fechamento bate com o que o Radar vai mostrar a seguir.
@@ -182,7 +185,7 @@ export function summarizeCheckinEffect(input: CheckinEffectInput): CheckinEffect
     // Mesma regra do Radar: sem ativos, o patrimônio é a estimativa do onboarding.
     patrimonyBefore: patrimonyOf(input.beforeAssets, input.currentUser.currentPatrimony),
     patrimonyAfter: patrimonyOf(input.afterAssets, input.currentUser.currentPatrimony),
-    estimatedBefore: activeOnly(input.beforeAssets).length === 0,
+    estimatedBefore: growthOnly(input.beforeAssets).length === 0,
     investedTotal: Math.round((sumValues(input.afterAssets) - sumValues(input.beforeAssets)) * 100) / 100,
     adherenceBefore: before.adherence,
     adherenceAfter: after.adherence,
@@ -203,6 +206,7 @@ function toProjectionAsset(asset: AssetWithId): ProjectionAssetSnapshot {
     ...(asset.monthlyContribution !== undefined
       ? { monthlyContribution: asset.monthlyContribution, contributionEndsAt: asset.contributionEndsAt }
       : {}),
+    ...(asset.excludedFromGrowth ? { excludedFromGrowth: true } : {}),
   }
 }
 

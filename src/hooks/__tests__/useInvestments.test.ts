@@ -167,6 +167,45 @@ describe('summarizeCheckinEffect (antes × depois)', () => {
     expect(effect.investedTotal).toBe(3000)
   })
 
+  it('consórcio fora do crescimento: o aporte conta como investido, mas o patrimônio não muda', () => {
+    const before = [
+      asset({ id: 'a', name: 'CDB', currentValue: 10_000 }),
+      asset({ id: 'c', name: 'Consórcio', currentValue: 0, excludedFromGrowth: true }),
+    ]
+    const after = [
+      asset({ id: 'a', name: 'CDB', currentValue: 10_000 }),
+      asset({ id: 'c', name: 'Consórcio', currentValue: 1500, excludedFromGrowth: true }),
+    ]
+    const effect = summarizeCheckinEffect({
+      beforeAssets: before,
+      afterAssets: after,
+      beforeCheckins: [],
+      afterCheckins: [checkin('2026-10-1', 1500, 1500)],
+      currentUser,
+      investmentsPlan: 1500,
+      today: { year: 2026, month: 10 },
+    })
+    expect(effect.investedTotal).toBe(1500)
+    expect(effect.patrimonyBefore).toBe(10_000)
+    expect(effect.patrimonyAfter).toBe(10_000)
+    expect(effect.estimatedBefore).toBe(false)
+  })
+
+  it('só consórcio fora do crescimento: o "antes" é a estimativa do onboarding', () => {
+    const effect = summarizeCheckinEffect({
+      beforeAssets: [asset({ id: 'c', name: 'Consórcio', currentValue: 0, excludedFromGrowth: true })],
+      afterAssets: [asset({ id: 'c', name: 'Consórcio', currentValue: 1500, excludedFromGrowth: true })],
+      beforeCheckins: [],
+      afterCheckins: [],
+      currentUser: { ...currentUser, currentPatrimony: 12_000 },
+      investmentsPlan: 1500,
+      today: { year: 2026, month: 10 },
+    })
+    expect(effect.estimatedBefore).toBe(true)
+    expect(effect.patrimonyBefore).toBe(12_000)
+    expect(effect.patrimonyAfter).toBe(12_000)
+  })
+
   it('mais patrimônio não atrasa o prazo: o tempo até a meta diminui ou fica igual', () => {
     const before = [asset({ id: 'a', name: 'CDB', currentValue: 50_000 })]
     const after = [asset({ id: 'a', name: 'CDB', currentValue: 60_000 })]

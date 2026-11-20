@@ -121,6 +121,7 @@ export default function CheckinCard({
           assetClass: data.assetClass,
           expectedReturnRate: data.expectedReturnRate,
           ...(hasContribution ? { monthlyContribution: data.monthlyContribution } : {}),
+          ...(data.excludedFromGrowth ? { excludedFromGrowth: true } : {}),
           ...(hasContribution && data.remainingInstallments
             ? { contributionEndsAt: endsAtFromRemaining(data.remainingInstallments, today) }
             : {}),

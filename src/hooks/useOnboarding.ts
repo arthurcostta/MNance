@@ -168,7 +168,7 @@ export function useOnboarding(uid: string | undefined) {
         riskProfile: existingUser.riskProfile,
         currentPatrimony: resolveCurrentPatrimony(
           existingUser.currentPatrimony,
-          portfolio.assets.length,
+          portfolio.growthAssets.length,
           portfolio.totalValue
         ),
         monthlyIncomeNet: existingUser.monthlyIncomeNet,
@@ -185,11 +185,11 @@ export function useOnboarding(uid: string | undefined) {
       setCurrentStep(REVIEW_STEP)
     }
     setReady(true)
-  }, [ready, userLoaded, existingUser, portfolio.loadingInitial, portfolio.assets.length, portfolio.totalValue])
+  }, [ready, userLoaded, existingUser, portfolio.loadingInitial, portfolio.growthAssets.length, portfolio.totalValue])
 
   const loadingInitial = !ready
   // Em edição com ativos cadastrados o patrimônio vem do Portfólio e não é editável aqui.
-  const patrimonyFromPortfolio = isEditing && portfolio.assets.length > 0
+  const patrimonyFromPortfolio = isEditing && portfolio.growthAssets.length > 0
 
   const emergencyReserve = calculateEmergencyReserve({
     monthlyIncomeNet: data.monthlyIncomeNet,

@@ -76,8 +76,10 @@ export default function Investments() {
 
   // Estratégia sugerida (somente leitura): composição-alvo do perfil × carteira atual.
   const targetModel = ALLOCATION_MODELS[modelKeyForRiskProfile(currentUser.riskProfile)]
-  const byClass = currentByClass(inv.assets)
-  const portfolioTotal = inv.assets.reduce((sum, a) => sum + a.currentValue, 0)
+  // Carteira atual sem os ativos fora do crescimento (ex.: consórcio imobiliário): é ela que se compara com a estratégia.
+  const growthAssets = inv.assets.filter((a) => !a.excludedFromGrowth)
+  const byClass = currentByClass(growthAssets)
+  const portfolioTotal = growthAssets.reduce((sum, a) => sum + a.currentValue, 0)
   const currentModel: AllocationModel = {
     label: 'Carteira atual',
     stocks: portfolioTotal ? byClass.stocks / portfolioTotal : 0,

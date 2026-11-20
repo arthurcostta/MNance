@@ -64,7 +64,14 @@ export default function AssetList({ assets, onEdit, onArchive }: AssetListProps)
           className="flex flex-col gap-2 rounded border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900">{asset.name}</p>
+            <p className="font-medium text-gray-900">
+              {asset.name}
+              {asset.excludedFromGrowth && (
+                <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 align-middle text-xs font-normal text-gray-600">
+                  Fora do crescimento
+                </span>
+              )}
+            </p>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
               <span>{ASSET_CLASS_LABELS[asset.assetClass] || asset.assetClass}</span>
               <span>{formatCurrency(asset.currentValue)}</span>
