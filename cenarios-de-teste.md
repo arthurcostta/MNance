@@ -1417,6 +1417,57 @@ divisão ganha a fatia "Caixa da Empresa" com o seu %. No passo 5 ela **some**, 
 
 **Resultado esperado:** Depois de confirmar um aporte, o Portfólio mostra o saldo do servidor (não o cache local). Sem conexão, a tela ainda abre com o último saldo conhecido, sem erro.
 
+### CENÁRIO 188: Primeiro mês do histórico `[Portfólio · 20/11/2026]`
+
+**Pré-condições:** Conta com ativos e nenhum retrato de mês gravado ainda.
+**Passos:** Abrir o Portfólio.
+**Resultado esperado:** Cartão "Patrimônio ao longo do tempo" logo abaixo dos dois cartões de totais, com o formulário fechado. Um ponto só, no mês corrente, e o texto "Seu histórico começa em 11/26. O app registra o patrimônio de cada mês; volte nos próximos meses para ver a linha crescer." Em `users/{uid}/patrimonySnapshots/2026-11` existe um documento com o total do Portfólio.
+
+### CENÁRIO 189: Mês sem registro aparece como ponto vazado `[Portfólio · 20/11/2026]`
+
+**Pré-condições:** Retratos gravados em 08/26 e em 10/26, nenhum em 09/26.
+**Passos:** Abrir o Portfólio no mês corrente.
+**Resultado esperado:** A linha tem três meses (08/26, 09/26, 10/26) mais o mês corrente. O mês sem registro aparece com ponto vazado e repete o saldo anterior. Ao passar o mouse sobre ele, o tooltip diz "sem alteração neste mês: saldo mantido". O resumo acima do gráfico compara com o primeiro mês ("Desde 08/26: …").
+
+### CENÁRIO 190: Editar um ativo move o último ponto na hora `[Portfólio · 20/11/2026]`
+
+**Passos:** Com a linha aberta, editar o valor de um ativo (ex.: +R$ 1.000) e salvar.
+**Resultado esperado:** O total do cartão do topo e o último ponto do gráfico sobem juntos, sem recarregar a página. O resumo muda para a variação desde o primeiro mês. Em `patrimonySnapshots/{mês corrente}` o documento é **atualizado** (um documento por mês, nunca dois).
+
+### CENÁRIO 191: Eixo em mm/aa, valores exatos e sem rolagem no celular `[Portfólio · 20/11/2026]`
+
+**Resultado esperado:** Os rótulos do eixo X são meses em `MM/AA`. Quando o degrau do eixo Y é de mil em mil, os rótulos são "R$ 41 mil"; com degrau menor, aparecem valores inteiros em reais ("R$ 41.250"), sem rótulos repetidos. O tooltip mostra "Patrimônio: R$ …" e a variação "+R$ … (+x,x%) em relação a MM/AA". Em 390 px a página não rola na horizontal.
+
+### CENÁRIO 192: Sem ativo ativo, nada é inventado `[Portfólio · 20/11/2026]`
+
+**Pré-condições:** Conta sem nenhum ativo ativo.
+**Resultado esperado:** O cartão mostra "Cadastre seus ativos para começar o histórico do seu patrimônio." e nenhum gráfico. Nenhum retrato é gravado com valor zero. Se todos os ativos forem arquivados, a linha termina no último retrato gravado: não aparece um ponto de zero para o mês corrente.
+
+### CENÁRIO 193: Divisão mensal mostra o valor real de Despesas `[Radar · 20/11/2026]`
+
+**Pré-condições:** Lista detalhada de despesas essenciais cadastrada (real R$ 1.746,00) e orçamento de essenciais de R$ 3.179,55 (renda R$ 5.781,00).
+**Passos:** Na Distribuição, destinar o saldo das essenciais para Investimentos (100%); depois para Lazer (0%). Abrir o Radar em cada caso.
+**Resultado esperado:** "Despesas" mostra R$ 1.746,00 (o real, não o orçado). A soma dos itens (Despesas + Educação + Lazer + Investimentos) é igual à renda (R$ 5.781,00), sem o saldo contado duas vezes. Sem lista detalhada, Despesas mostra o orçado (R$ 3.179,55). Com saldo pendente, Despesas mostra o real e o aviso "Saldo de R$ 1.433,55 nas essenciais sem destino" aparece.
+
+### CENÁRIO 194: Consórcio marcado como fora do crescimento `[Portfólio · 20/11/2026]`
+
+**Passos:** Adicionar ativo com o instrumento "Consórcio (sem rendimento)", saldo R$ 10.000, aporte mensal R$ 1.500 e 60 parcelas.
+**Resultado esperado:** A caixa "Não conta para o crescimento do patrimônio" já vem marcada (pode ser desmarcada). A lista mostra a etiqueta "Fora do crescimento" no ativo, e aparece o cartão "Fora do crescimento: R$ 10.000,00". "Valor Total Investido", "Retorno Ponderado" e o gráfico do histórico não mudam. O cartão "Aportes programados" passa a mostrar R$ 1.500,00/mês.
+
+### CENÁRIO 195: O consórcio não muda o patrimônio nem o retorno do Radar `[Radar · 20/11/2026]`
+
+**Resultado esperado:** "Patrimônio" e "Retorno real" são os mesmos de antes do cadastro (R$ 41,4 mil e 6,4% a.a. real). "Entra por mês" cai pelo que sobra para o crescimento, porque a parcela sai do aporte livre (medido: R$ 366,68, só o rendimento). O tempo até a meta piora porque a parcela consome o plano (medido: de 55a 9m para 58a 11m). O painel "Como esta projeção é calculada" lista o consórcio como fora do crescimento, com a parcela e o prazo.
+**Observação:** o painel multiplica a parcela pela aderência dos check-ins (44% na conta de teste: R$ 657,33/mês em vez de R$ 1.500). É a regra já em vigor desde o M5.9, mas uma parcela contratual não deveria cair com a aderência. Pendente de decisão do usuário.
+
+### CENÁRIO 196: Depois do fim das parcelas, o valor volta a ser investido `[Radar · 20/11/2026]`
+
+**Resultado esperado:** Depois do último mês da parcela, o valor passa a contar como aporte livre na taxa da carteira. Coberto por `core/__tests__/excludedFromGrowth.test.ts` (conferido contra `calculateCompoundInterest`). No navegador, o painel mostra o texto "depois, os R$ 1.500 continuam sendo investidos como aporte livre".
+
+### CENÁRIO 197: Desmarcar a caixa volta a contar `[Portfólio · 20/11/2026]`
+
+**Passos:** Em "Editar" do consórcio, desmarcar "Não conta para o crescimento do patrimônio" e salvar; depois marcar de novo.
+**Resultado esperado:** Desmarcado, o saldo volta a somar no total e no retorno, a etiqueta e o cartão somem, e o Radar passa a usar o valor. Marcado de novo, volta a ficar de fora. Um ativo arquivado não conta em nenhum total.
+
 ---
 
 ### CENÁRIO 84: Cada pagamento valida a própria soma `[M5.5]`
@@ -2472,9 +2523,9 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 
 **Resultado esperado:** Os três totais (Saiu do bolso, Juros, Total) aparecem empilhados, um por linha, com o rótulo à esquerda e o valor completo à direita, sem sair do cartão (conferir também com 50 anos, valores acima de R$ 5 mi, e em 360 px). A partir de 640 px voltam a ficar três cartões lado a lado. O gráfico de barras e a legenda não cortam valores e a página não rola para os lados.
 
-### CENÁRIO 176: Porcentagem em cada item da Divisão mensal `[Radar · 22/10/2026]`
+### CENÁRIO 176: Porcentagem em cada item da Divisão mensal `[Radar · 22/10/2026 · ajustado 20/11/2026]`
 
-**Resultado esperado:** Cada item da "Divisão mensal" mostra o valor em R$ e a porcentagem da barra ("R$ 3.179,55 · 44%"). As porcentagens somam ~100%. Fatia positiva menor que 1% aparece como "<1%". Em 390 px a legenda fica em uma coluna sem quebrar o valor.
+**Resultado esperado:** Cada item da "Divisão mensal" mostra o valor em R$ e a porcentagem da barra ("R$ 1.746,00 · 30%"). As porcentagens somam ~100%. Despesas usa o valor real da lista (cenário 193), não o orçado. Fatia positiva menor que 1% aparece como "<1%". Em 390 px a legenda fica em uma coluna sem quebrar o valor.
 
 ---
 
@@ -2490,3 +2541,5 @@ pendente" (sem lista não existe saldo), e aporte planejado R$ 1.000,00 (25% de 
 | 16/10/2026 | M5.8 Fase 2b (editar onboarding, não commitada) | 145–149 + 87/89/114 atualizados, no navegador automatizado (desktop 1280px e mobile 390px) com `qa.rafael` e uma conta descartável `qa.novo.*` (script `sim11-onboarding-edit.mjs` e `sim12-new-user-onboarding.mjs`) | 0 | **148 reproduzido antes do fix:** sem `merge`, "Atualizar" no onboarding trocou a inflação de 0,0% para 4,5%; com `merge: true` ela permanece 0,0%. Edição abre na revisão (4 botões "Alterar", sem inputs), meta inválida bloqueia "Voltar à revisão", mudar a meta de R$ 5 mi para R$ 2 mi leva o Radar de ~45a4m para ~22a4m, "Cancelar" sem alterações sai direto e com alterações pede confirmação (recusar mantém; aceitar não grava). Conta nova: 5 passos, pontinhos, sem "Cancelar", revisão com preview 55/10/10/25. `tsc` 0 erros, 248 testes (20 arquivos), `oxlint` só warnings antigos, `npm run build` ok. Meta e inflação da conta de teste restauradas (R$ 5 mi / 4,5%). Console limpo. |
 | 17/10/2026 | M5.8 Fase 2b — patrimônio no onboarding (não commitada) | 150 e 151 no navegador automatizado (desktop 1280px e mobile 390px) com `qa.rafael` (valor de um ativo alterado +R$ 1.000 e restaurado) e uma conta descartável `qa.semativos.*` (`sim13-patrimony.mjs`, `sim14-sem-ativos.mjs`) | 0 | Com ativos: a revisão mostrou R$ 42.291,00, igual ao card do Radar, sem "Alterar" no bloco; "Cancelar" sem mexer saiu sem aviso; "Atualizar" manteve o Radar. Sem ativos: 4 "Alterar", campo editável com R$ 10.000,00, Radar passou a R$ 12.500 (estimativa). `tsc` 0 erros, 252 testes, build ok, lint com 1 warning novo do mesmo tipo dos antigos. Ativo e Radar da conta de teste restaurados (R$ 41.291,00). |
 | 20/10/2026 | M5.9 — tela Investimentos (não commitada) | 152–159 no navegador automatizado (desktop 1280px; mobile 390px só visual) com `qa.rafael` e uma conta descartável `qa.inv.*` (`sim16-investments.mjs`, `sim17-conta-limpa.mjs`); 154 e 157 cobertos por teste unitário | 0 | Check-in gravou os valores, o banner sumiu, Portfólio e Radar subiram juntos (+R$ 1.500). Bugs achados e corrigidos: fechamento somava ativo arquivado (+R$ 100) e conta sem ativos usava 0 em vez da estimativa. Conta de teste restaurada (R$ 41.291). `npm test` 301 testes, lint sem erros, build ok. |
+| 20/11/2026 | Portfólio — histórico do patrimônio (não commitado) | 188–191 no navegador com `qa.rafael` (390 px e 1280 px), com relógio falso em 08/26 e 10/26 pelo script `sim-patrimony-history.mjs`; 192 com `qa.sem-lista` (estado vazio). Arquivar todos os ativos (fim do 192) só pelo código | 0 | Retratos 08/26 e 10/26 gravados e lidos; 09/26 apareceu como ponto vazado; +R$ 900 no IVVB11 moveu o último ponto e o resumo ("Desde 08/26: +R$ 900,00 (+2,2%)"); eixo com valores exatos (R$ 41.250 em vez de "41,3 mil"); tooltip com variação. Conta restaurada em R$ 41.391,00 (valor de antes do teste). Não verificado: tooltip do mês sem registro (só o ponto vazado foi visto). `tsc` 0 erros, 382 testes (27 arquivos). Retratos de teste ficam em `qa.rafael`: 08/26 e 10/26 (e 11/26 regravado). |
+| 20/11/2026 | Ajustes: Divisão mensal com valor real + consórcio fora do crescimento (não commitado) | 176 (ajustado), 193–197 no navegador (1280 px) com `qa.rafael` (`sim-excluded-growth.mjs`); 196 só por teste unitário | 0 | **193:** "Investir tudo" → Despesas R$ 1.746,00 (real), Educação R$ 578,10, Lazer R$ 578,10, Investimentos R$ 2.878,80: soma = renda R$ 5.781,00. **194:** caixa marcada ao escolher Consórcio; total e retorno não mudam (R$ 41.391,00 e 11,16%); cartão "Fora do crescimento" R$ 10.000,00; "Aportes programados" R$ 1.500,00/mês; etiqueta na lista. **195:** Patrimônio R$ 41,4 mil e retorno real 6,4% iguais aos de antes (desmarcado: 4,3%, porque o consórcio a 0% dilui a taxa); "Entra por mês" R$ 366,68; tempo até a meta 55a 9m → 58a 11m. **197:** desmarcar → total R$ 51.391,00 e 4 ativos; marcar de novo → R$ 41.391,00. **Não verificado no navegador:** 193 sem lista e com saldo pendente; 196 (só unitário); fechamento de check-in com o consórcio (só unitário); layout em 390 px do cartão novo e da caixa. **Achado (pendente de decisão):** a aderência (44%) reduz também a parcela contratual (R$ 657,33 em vez de R$ 1.500). Conta restaurada (consórcio arquivado, regra do saldo em "Usar em lazer", total R$ 41.391,00). `tsc` 0 erros, 401 testes (28 arquivos), lint sem erros, build ok. |

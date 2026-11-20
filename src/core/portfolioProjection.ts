@@ -41,6 +41,9 @@ export interface ProjectionAssetInput {
   // Parcelas restantes a partir de hoje (mês corrente incluso), já resolvidas pelo chamador — o core não
   // conhece "hoje". Ausente/null = sem prazo (permanente); ≤ 0 = encerrado.
   remainingMonths?: number | null
+  // Fora do crescimento (ex.: consórcio imobiliário): não entra no patrimônio nem na taxa, e a parcela não rende
+  // durante o prazo. A parcela continua abatendo o aporte livre (é dinheiro que sai da fatia de Investimentos).
+  excludedFromGrowth?: boolean
 }
 
 export interface CappedAsset {
@@ -101,6 +104,7 @@ export function blendRates(
 export interface ProgrammedContribution {
   name?: string
   monthlyAmount: number
+  excludedFromGrowth: boolean
   // Taxa nominal própria do ativo, já com o teto de longo prazo.
   usedNominalRate: number
   realRate: number
@@ -117,6 +121,8 @@ export interface ContributionBreakdown {
   effectiveMonthly: number
   // Quanto os aportes programados passam do aporte planejado (0 quando cabem).
   shortfall: number
+  // Parte de `committed` que é de ativos fora do crescimento (ex.: parcela de consórcio imobiliário).
+  committedOutsideGrowth: number
   programmed: ProgrammedContribution[]
 }
 
@@ -137,6 +143,7 @@ export function buildContributionBreakdown(
     programmed.push({
       ...(asset.name !== undefined ? { name: asset.name } : {}),
       monthlyAmount,
+      excludedFromGrowth: asset.excludedFromGrowth === true,
       usedNominalRate,
       realRate: toRealRate(usedNominalRate, inflationRate),
       remainingMonths: remaining,
@@ -144,6 +151,9 @@ export function buildContributionBreakdown(
   }
 
   const committed = programmed.reduce((sum, item) => sum + item.monthlyAmount, 0)
+  const committedOutsideGrowth = programmed
+    .filter((item) => item.excludedFromGrowth)
+    .reduce((sum, item) => sum + item.monthlyAmount, 0)
   const plan = Math.max(0, investmentsPlan)
 
   return {
@@ -151,6 +161,7 @@ export function buildContributionBreakdown(
     free: Math.max(0, plan - committed),
     effectiveMonthly: Math.max(plan, committed),
     shortfall: Math.max(0, committed - plan),
+    committedOutsideGrowth,
     programmed,
   }
 }
@@ -198,7 +209,8 @@ export interface ProjectionMetrics {
   // Total mensal necessário (parcelas programadas + aporte livre) para fechar a meta no prazo, comparável com
   // contributions.effectiveMonthly; 0 = só com o que já está programado a meta fecha; null = inviável.
   requiredContribution: { base: number | null; conservative: number | null }
-  // "O que entra por mês agora": aporte efetivo + rendimento mensal nominal do patrimônio atual.
+  // "O que entra por mês agora" no crescimento: aporte efetivo sem a parcela de ativos fora do crescimento, mais o
+  // rendimento mensal nominal do patrimônio que conta.
   velocity: number
 }
 
@@ -236,11 +248,14 @@ function buildStreams(
   ]
 
   for (const item of contributions.programmed) {
-    streams.push({
-      monthlyAmount: item.monthlyAmount,
-      annualRate: shiftedRate(item.realRate, item.usedNominalRate, shift),
-      ...(item.remainingMonths !== null ? { toMonth: item.remainingMonths } : {}),
-    })
+    // Fora do crescimento: a parcela vai para o bem (ex.: consórcio), então não rende durante o prazo.
+    if (!item.excludedFromGrowth) {
+      streams.push({
+        monthlyAmount: item.monthlyAmount,
+        annualRate: shiftedRate(item.realRate, item.usedNominalRate, shift),
+        ...(item.remainingMonths !== null ? { toMonth: item.remainingMonths } : {}),
+      })
+    }
 
     // Terminada a parcela, o valor liberado segue sendo investido (a fatia de Investimentos não muda sozinha),
     // agora na taxa da carteira. Premissa escrita no painel de premissas.
@@ -315,13 +330,16 @@ function findRequiredContribution(
 export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMetrics {
   const { assets, investmentsPlan, goalAmount, goalYears, inflationRate } = input
 
-  const rates = blendRates(assets, input.strategyNominalRate, inflationRate)
-  // "Estimado" = o patrimônio vem do onboarding porque não há ativos. Ativos com saldo 0 (ex.: consórcio recém-
-  // contratado) não são estimativa, mesmo que a taxa então venha da estratégia do perfil.
-  const estimated = assets.length === 0
+  // Só o que conta para o crescimento entra no patrimônio e na taxa. Ativos fora do crescimento (consórcio) entram
+  // apenas nos aportes, via buildContributionBreakdown.
+  const growthAssets = assets.filter((asset) => !asset.excludedFromGrowth)
+  const rates = blendRates(growthAssets, input.strategyNominalRate, inflationRate)
+  // "Estimado" = o patrimônio vem do onboarding porque nenhum ativo conta para o crescimento. Ativos com saldo 0
+  // (ex.: consórcio recém-contratado) não são estimativa, mesmo que a taxa então venha da estratégia do perfil.
+  const estimated = growthAssets.length === 0
   const startingPatrimony = estimated
     ? input.startingPatrimonyEstimate
-    : assets.reduce((sum, asset) => sum + asset.currentValue, 0)
+    : growthAssets.reduce((sum, asset) => sum + asset.currentValue, 0)
 
   const contributions = buildContributionBreakdown(assets, investmentsPlan, inflationRate)
 
@@ -378,6 +396,6 @@ export function calculateProjectionMetrics(input: ProjectionInput): ProjectionMe
         SCENARIO_REAL_RATE_SHIFT.conservative
       ),
     },
-    velocity: contributions.effectiveMonthly + monthlyNominalReturn,
+    velocity: contributions.effectiveMonthly - contributions.committedOutsideGrowth + monthlyNominalReturn,
   }
 }

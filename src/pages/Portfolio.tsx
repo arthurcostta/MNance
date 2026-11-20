@@ -4,8 +4,10 @@ import { usePortfolio, type AssetFormInput, type AssetFormMode } from '../hooks/
 import type { AssetWithId } from '../types/asset'
 import { endsAtFromRemaining, yearMonthOf } from '../core/installments'
 import { updateUserDocument } from '../services/userService'
+import { usePatrimonyHistory } from '../hooks/usePatrimonyHistory'
 import AssetForm from '../components/Portfolio/AssetForm'
 import AssetList from '../components/Portfolio/AssetList'
+import PatrimonyHistoryChart from '../components/Portfolio/PatrimonyHistoryChart'
 import SeedPatrimonyPrompt from '../components/Portfolio/SeedPatrimonyPrompt'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
@@ -23,6 +25,8 @@ function formatCurrency(value: number): string {
 export default function Portfolio() {
   const { user, currentUser, refreshCurrentUser } = useAuth()
   const portfolio = usePortfolio(user?.uid)
+  // Sem ativo ativo não há total vivo: o gráfico mostra só os meses já registrados (nada é inventado).
+  const history = usePatrimonyHistory(user?.uid, portfolio.growthAssets.length > 0 ? portfolio.totalValue : null)
 
   const [formMode, setFormMode] = useState<AssetFormMode | 'closed'>('closed')
   const [editingAsset, setEditingAsset] = useState<AssetWithId | null>(null)
@@ -72,6 +76,7 @@ export default function Portfolio() {
           expectedReturnRate: data.expectedReturnRate,
           ...(hasContribution ? { monthlyContribution: data.monthlyContribution } : {}),
           ...(endsAt ? { contributionEndsAt: endsAt } : {}),
+          ...(data.excludedFromGrowth ? { excludedFromGrowth: true } : {}),
         })
         if (formMode === 'seed') {
           await updateUserDocument(user.uid, { portfolioSeedDismissed: true })
@@ -86,6 +91,8 @@ export default function Portfolio() {
           // null remove o campo do documento (aporte desligado ou sem prazo).
           monthlyContribution: hasContribution ? data.monthlyContribution : null,
           contributionEndsAt: endsAt ?? null,
+          // null remove o campo: volta a contar no crescimento.
+          excludedFromGrowth: data.excludedFromGrowth ? true : null,
         })
       }
       setFormMode('closed')
@@ -139,7 +146,26 @@ export default function Portfolio() {
             <p className="mt-1 text-xs text-gray-500">Saem da sua fatia de Investimentos (veja o Radar).</p>
           </Card>
         )}
+        {portfolio.excludedValue > 0 && (
+          <Card className="col-span-2">
+            <p className="text-xs font-medium text-gray-600">Fora do crescimento</p>
+            <p className="mt-2 text-xl font-semibold text-gray-900">{formatCurrency(portfolio.excludedValue)}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Ativos que você investe para comprar um bem (ex.: consórcio). Não entram no total, no retorno nem no
+              histórico do patrimônio.
+            </p>
+          </Card>
+        )}
       </div>
+
+      {formMode === 'closed' && (
+        <PatrimonyHistoryChart
+          points={history.points}
+          summary={history.summary}
+          loading={history.loading}
+          error={history.error}
+        />
+      )}
 
       {showSeedBanner && (
         <SeedPatrimonyPrompt

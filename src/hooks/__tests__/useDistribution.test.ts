@@ -404,6 +404,32 @@ describe('calculateMonthlyFlow', () => {
     expect(flow.surplusPending).toBe(false)
   })
 
+  // Divisão mensal (Radar): os segmentos precisam fechar a renda. Despesas usa o real, e o saldo roteado
+  // aparece uma vez só (em Investimentos ou em Lazer).
+  it('should show real spending in the monthly division so the segments add up to the income', () => {
+    const invest = calculateMonthlyFlow({ ...base, surplusInvestmentsPercent: 100 })
+    expect(invest.essentialsTotal).toBe(1746)
+    expect(invest.essentialsTotal + persona.education + invest.leisureTotal + invest.investmentsPlan).toBeCloseTo(5781, 2)
+
+    const split = calculateMonthlyFlow({ ...base, surplusInvestmentsPercent: 70 })
+    expect(split.essentialsTotal + persona.education + split.leisureTotal + split.investmentsPlan).toBeCloseTo(5781, 2)
+  })
+
+  it('should show the real spending as essentials even while the surplus is pending', () => {
+    const flow = calculateMonthlyFlow({ ...base, surplusInvestmentsPercent: undefined })
+    expect(flow.essentialsTotal).toBe(1746)
+  })
+
+  it('should show the budget as essentials when there is no detailed list', () => {
+    const flow = calculateMonthlyFlow({ amounts: persona, essentialsReal: 0, hasEssentialsList: false })
+    expect(flow.essentialsTotal).toBeCloseTo(persona.essentials, 8)
+  })
+
+  it('should show the real spending when it exceeds the budget', () => {
+    const flow = calculateMonthlyFlow({ ...base, essentialsReal: 3500, surplusInvestmentsPercent: 100 })
+    expect(flow.essentialsTotal).toBe(3500)
+  })
+
   it('should not produce NaN or Infinity with zero income', () => {
     const zero = calculateDistributionAmounts(
       [{ split: { essentialsPercent: 55, educationPercent: 10, leisurePercent: 10, investmentsPercent: 25, customPercents: {} }, incomeShareFraction: 1 }],

@@ -15,6 +15,7 @@ import {
   archiveAsset as archiveAssetService,
   type AssetUpdate,
 } from '../services/assetService'
+import { recordPatrimonySnapshot } from '../services/patrimonySnapshotService'
 
 export const MAX_REMAINING_INSTALLMENTS = 600
 
@@ -28,6 +29,8 @@ export interface AssetFormInput {
   monthlyContribution?: number
   // Parcelas restantes (mês corrente incluso); null/ausente = sem prazo. Só vale com aporte.
   remainingInstallments?: number | null
+  // true = não conta para o crescimento do patrimônio (ex.: consórcio imobiliário).
+  excludedFromGrowth?: boolean
 }
 
 export interface AssetFormValues extends AssetFormInput {
@@ -96,10 +99,28 @@ export function calculateCommittedContribution(
   }, 0)
 }
 
+// Ativos que contam para o crescimento do patrimônio e os que ficam fora (ex.: consórcio imobiliário, que compra
+// um bem). Total e retorno do Portfólio, patrimônio do Radar e histórico usam só os que contam.
+export function splitByGrowth<T extends { currentValue: number; excludedFromGrowth?: boolean }>(assets: T[]) {
+  const growth = assets.filter((asset) => !asset.excludedFromGrowth)
+  const excluded = assets.filter((asset) => asset.excludedFromGrowth === true)
+  const sum = (list: T[]) => list.reduce((total, asset) => total + asset.currentValue, 0)
+  return { growth, excluded, growthValue: sum(growth), excludedValue: sum(excluded) }
+}
+
 export function usePortfolio(uid: string | undefined) {
   const [rawAssets, setRawAssets] = useState<AssetWithId[]>([])
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // Guarda a lista lida e registra o patrimônio do mês em segundo plano (não trava a tela se falhar).
+  const applyAssets = useCallback(
+    (list: AssetWithId[]) => {
+      setRawAssets(list)
+      if (uid) void recordPatrimonySnapshot(uid, list)
+    },
+    [uid]
+  )
 
   // Busca os ativos do Firestore. Exposta como `refresh` para a tela de Investimentos atualizar os
   // saldos depois de um check-in sem recarregar a página.
@@ -109,7 +130,7 @@ export function usePortfolio(uid: string | undefined) {
       try {
         const all = await getAssets(uid)
         if (isCancelled()) return null
-        setRawAssets(all)
+        applyAssets(all)
         return all
       } catch (error) {
         if (!isCancelled()) {
@@ -120,7 +141,7 @@ export function usePortfolio(uid: string | undefined) {
         if (!isCancelled()) setLoadingInitial(false)
       }
     },
-    [uid]
+    [uid, applyAssets]
   )
 
   useEffect(() => {
@@ -152,12 +173,16 @@ export function usePortfolio(uid: string | undefined) {
     [rawAssets]
   )
 
-  const totalValue = useMemo(() => assets.reduce((sum, a) => sum + a.currentValue, 0), [assets])
+  const split = useMemo(() => splitByGrowth(assets), [assets])
+  const growthAssets = split.growth
+  const totalValue = split.growthValue
 
   const weightedReturn = useMemo(() => {
-    if (assets.length === 0 || totalValue === 0) return 0
-    return calculateWeightedReturn(assets.map((a) => ({ amount: a.currentValue, expectedReturnRate: a.expectedReturnRate })))
-  }, [assets, totalValue])
+    if (growthAssets.length === 0 || totalValue === 0) return 0
+    return calculateWeightedReturn(
+      growthAssets.map((a) => ({ amount: a.currentValue, expectedReturnRate: a.expectedReturnRate }))
+    )
+  }, [growthAssets, totalValue])
 
   const committedContribution = useMemo(() => calculateCommittedContribution(assets, yearMonthOf(new Date())), [assets])
 
@@ -168,13 +193,13 @@ export function usePortfolio(uid: string | undefined) {
       try {
         await addAssetService(uid, data)
         const updated = await getAssets(uid)
-        setRawAssets(updated)
+        applyAssets(updated)
       } catch (error) {
         setActionError(error instanceof Error ? error.message : 'Erro ao adicionar ativo.')
         throw error
       }
     },
-    [uid]
+    [uid, applyAssets]
   )
 
   const updateAsset = useCallback(
@@ -184,13 +209,13 @@ export function usePortfolio(uid: string | undefined) {
       try {
         await updateAssetService(uid, assetId, data)
         const updated = await getAssets(uid)
-        setRawAssets(updated)
+        applyAssets(updated)
       } catch (error) {
         setActionError(error instanceof Error ? error.message : 'Erro ao atualizar ativo.')
         throw error
       }
     },
-    [uid]
+    [uid, applyAssets]
   )
 
   const archiveAsset = useCallback(
@@ -200,18 +225,21 @@ export function usePortfolio(uid: string | undefined) {
       try {
         await archiveAssetService(uid, assetId)
         const updated = await getAssets(uid)
-        setRawAssets(updated)
+        applyAssets(updated)
       } catch (error) {
         setActionError(error instanceof Error ? error.message : 'Erro ao arquivar ativo.')
         throw error
       }
     },
-    [uid]
+    [uid, applyAssets]
   )
 
   return {
+    // Todos os ativos ativos (lista e check-in). Os totais de crescimento usam growthAssets.
     assets,
+    growthAssets,
     totalValue,
+    excludedValue: split.excludedValue,
     weightedReturn,
     committedContribution,
     loadingInitial,

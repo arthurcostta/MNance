@@ -35,4 +35,6 @@ export interface NewAssetDraft {
   // Mesmos campos do formulário do Portfólio; ausentes = sem aporte programado.
   monthlyContribution?: number
   contributionEndsAt?: string
+  // Mesmo significado de Asset.excludedFromGrowth (ausente = conta).
+  excludedFromGrowth?: boolean
 }

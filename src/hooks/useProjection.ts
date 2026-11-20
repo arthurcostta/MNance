@@ -23,6 +23,8 @@ import {
 export interface ProgrammedContributionData {
   name: string
   monthlyAmount: number
+  // Fora do crescimento (ex.: consórcio imobiliário): a parcela sai do plano mas não rende durante o prazo.
+  excludedFromGrowth: boolean
   usedNominalRate: number
   // Parcelas restantes (mês corrente incluso) e o mês da última, "mm/aaaa"; null = sem prazo.
   remainingMonths: number | null
@@ -31,6 +33,8 @@ export interface ProgrammedContributionData {
 
 export interface ContributionAssumptionsData {
   committed: number
+  // Parte de `committed` de ativos fora do crescimento.
+  committedOutsideGrowth: number
   free: number
   effectiveMonthly: number
   shortfall: number
@@ -60,6 +64,7 @@ export interface ProjectionAssetSnapshot {
   expectedReturnRate: number
   monthlyContribution?: number
   contributionEndsAt?: string
+  excludedFromGrowth?: boolean
 }
 
 export interface BuildProjectionInput {
@@ -100,6 +105,7 @@ export function buildProjectionMetrics({
             remainingMonths: resolveRemainingMonths(asset.contributionEndsAt, today),
           }
         : {}),
+      ...(asset.excludedFromGrowth ? { excludedFromGrowth: true } : {}),
     })),
     startingPatrimonyEstimate: currentUser.currentPatrimony,
     investmentsPlan: investmentsPlan * adherence,
@@ -131,7 +137,8 @@ export function useProjection(investmentsPlan: number, adherence = 1) {
 
   const assumptions: ProjectionAssumptionsData | null = metrics
     ? {
-        assetCount: portfolio.assets.length,
+        // Conta só os ativos que entram no crescimento (o consórcio fora dele não é "ativo do patrimônio").
+        assetCount: portfolio.growthAssets.length,
         startingPatrimony: metrics.startingPatrimony,
         estimated: metrics.estimated,
         rateSource: metrics.rates.source,
@@ -143,6 +150,7 @@ export function useProjection(investmentsPlan: number, adherence = 1) {
         inflationRate,
         contributions: {
           committed: metrics.contributions.committed,
+          committedOutsideGrowth: metrics.contributions.committedOutsideGrowth,
           free: metrics.contributions.free,
           effectiveMonthly: metrics.contributions.effectiveMonthly,
           shortfall: metrics.contributions.shortfall,
@@ -153,6 +161,7 @@ export function useProjection(investmentsPlan: number, adherence = 1) {
           programmed: metrics.contributions.programmed.map((item) => ({
             name: item.name ?? 'Ativo',
             monthlyAmount: item.monthlyAmount,
+            excludedFromGrowth: item.excludedFromGrowth,
             usedNominalRate: item.usedNominalRate,
             remainingMonths: item.remainingMonths,
             endsLabel:

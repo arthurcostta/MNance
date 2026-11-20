@@ -14,6 +14,9 @@ export interface Asset {
   // Mês da última parcela ('YYYY-MM', inclusive). Ausente = aporte permanente. Guarda-se o mês final, não um
   // contador, para as parcelas restantes se recalcularem sozinhas com o tempo (core/installments.ts).
   contributionEndsAt?: string
+  // true = o ativo não conta para o crescimento do patrimônio (ex.: consórcio imobiliário, que compra um bem).
+  // Continua na lista e, se tiver parcela, ainda sai da fatia de Investimentos. Ausente = conta normalmente.
+  excludedFromGrowth?: boolean
   status: AssetStatus
   createdAt: Timestamp
   updatedAt: Timestamp

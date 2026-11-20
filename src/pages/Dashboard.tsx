@@ -56,7 +56,8 @@ export default function Dashboard() {
 
   const segments: DistributionSegment[] = distribution.flow && distribution.amounts
     ? [
-        { label: DEFAULT_CATEGORY_LABELS.essentials, value: distribution.amounts.essentials, colorClass: SEGMENT_COLORS.essentials },
+        // Despesas mostra o real quando há lista: o saldo roteado já está em Investimentos/Lazer.
+        { label: DEFAULT_CATEGORY_LABELS.essentials, value: distribution.flow.essentialsTotal, colorClass: SEGMENT_COLORS.essentials },
         { label: DEFAULT_CATEGORY_LABELS.education, value: distribution.amounts.education, colorClass: SEGMENT_COLORS.education },
         { label: DEFAULT_CATEGORY_LABELS.leisure, value: distribution.flow.leisureTotal, colorClass: SEGMENT_COLORS.leisure },
         { label: DEFAULT_CATEGORY_LABELS.investments, value: distribution.flow.investmentsPlan, colorClass: SEGMENT_COLORS.investments },
@@ -83,7 +84,7 @@ export default function Dashboard() {
 
       {assumptions.estimated && (
         <Alert variant="info">
-          Estimativa: sem ativos cadastrados.{' '}
+          Estimativa: nenhum ativo conta para o crescimento do patrimônio.{' '}
           <Link to="/portfolio" className="font-medium underline">
             Cadastre seus ativos
           </Link>{' '}

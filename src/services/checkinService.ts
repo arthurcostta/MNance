@@ -115,6 +115,7 @@ export async function confirmCheckin(uid: string, input: ConfirmCheckinInput): P
         expectedReturnRate: entry.newAsset.expectedReturnRate,
         ...(entry.newAsset.monthlyContribution ? { monthlyContribution: entry.newAsset.monthlyContribution } : {}),
         ...(entry.newAsset.contributionEndsAt ? { contributionEndsAt: entry.newAsset.contributionEndsAt } : {}),
+        ...(entry.newAsset.excludedFromGrowth ? { excludedFromGrowth: true } : {}),
         status: 'active',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

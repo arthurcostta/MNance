@@ -559,13 +559,24 @@ mudar a meta de patrimônio em Conta → "Editar onboarding": o formulário refa
 - Totais no celular (04/11/2026): os 3 cartões (bolso, juros, total) empilham em uma coluna abaixo de `sm`, com o valor completo e sem quebra (`TotalTile`); eram 3 colunas e os valores estouravam o cartão em 390 px. Ainda sem commit.
 - Cenários 171–175 em `cenarios-de-teste.md` §24.
 
-**Check-in de Investimentos e Portfólio (19/11/2026): implementado, ainda sem commit.** Relato: aporte lançado em 16/11 não apareceu no Portfólio. Reprodução na conta `qa.rafael` (fluxo do relato, dois dias, dois ativos): o saldo subiu exatamente o valor lançado, no ativo certo e no total. A causa do caso real não foi reproduzida; o caminho testado funciona.
+**Check-in de Investimentos e Portfólio (19/11/2026): commit `46780e6`, em produção desde 19/11/2026.** Relato: aporte lançado em 16/11 não apareceu no Portfólio. Reprodução na conta `qa.rafael` (fluxo do relato, dois dias, dois ativos): o saldo subiu exatamente o valor lançado, no ativo certo e no total. A causa do caso real não foi reproduzida; o caminho testado funciona.
 - Aporte continua SOMANDO ao saldo do ativo (regra confirmada pelo usuário). `applyCheckinToAssets` (core) calcula o antes → depois por ativo; `confirmCheckin` devolve isso e o fechamento lista cada ativo.
 - Após gravar, o app relê do servidor e confere cada saldo (`findMissingCheckinUpdates`); divergência vira alerta vermelho.
 - `getAssets` sempre pede ao servidor (`getDocsFromServer`) e só usa o cache se estiver offline.
 - "Hoje" é atualizado ao voltar ao foco (`focus`/`visibilitychange`); o check-in usa a data do clique.
 - "Não investi" pode ser refeito (`reopenSkippedCheckin` apaga só o `skipped`). Confirmado nunca é removido.
 - Cenários 183–187. Testes: `checkin.test.ts` (23 no arquivo).
+
+**Divisão mensal com valor real (20/11/2026): implementado, ainda sem commit.** Despesas na barra do Radar usa o real da lista detalhada (`flow.essentialsTotal` em `calculateMonthlyFlow`); sem lista, o orçado. Antes, com "Investir tudo", o saldo entrava em Investimentos e Despesas continuava no orçado: a barra passava da renda. Testes em `useDistribution.test.ts`. Cenário 193.
+
+**Ativo fora do crescimento (consórcio imobiliário, 20/11/2026): implementado, ainda sem commit.** `Asset.excludedFromGrowth` (ausente = conta). A caixa "Não conta para o crescimento do patrimônio" vem marcada ao escolher o instrumento Consórcio. Fica fora do patrimônio e da taxa da projeção, do total e do retorno do Portfólio, do histórico, do "antes → depois" do check-in e da carteira atual de Investimentos. A parcela continua saindo da fatia de Investimentos (abate o aporte livre), não rende durante o prazo, e depois volta a ser aporte livre. Núcleo: `core/portfolioProjection.ts` (`committedOutsideGrowth`); `usePortfolio.splitByGrowth`. Testes: `excludedFromGrowth.test.ts`. Cenários 194–197.
+- **Pendente de decisão:** a aderência dos check-ins também reduz a parcela contratual (44% → R$ 657,33 em vez de R$ 1.500). É a regra do M5.9 aplicada a todos os aportes programados.
+
+**Histórico do patrimônio no Portfólio (20/11/2026): implementado, ainda sem commit.** O total registrado também ignora ativos fora do crescimento (`activeAssetsTotal`). Gráfico "Patrimônio ao longo do tempo" logo abaixo dos totais, com eixo em mm/aa. O app não guardava histórico (só o saldo atual de cada ativo), então mostra só o que for registrado a partir de agora (decisão do usuário: sem lançar meses passados à mão).
+- Um retrato por mês em `users/{uid}/patrimonySnapshots/{AAAA-MM}` (`{ month, total, recordedAt }`), sobrescrito a cada leitura de ativos. A gravação fica em `usePortfolio` (`applyAssets`) e `recordPatrimonySnapshot` deduplica por sessão; falha vira aviso no console. `firestore.rules` não muda (regra genérica de subcoleção).
+- Núcleo puro: `core/patrimonyHistory.ts` (`activeAssetsTotal`, `buildHistorySeries`, `summarizeHistory`, `historyAxis`). Mês sem retrato repete o saldo anterior e aparece com ponto vazado; o mês corrente usa o total vivo do cartão do topo; sem ativo ativo não grava zero nem inventa ponto.
+- UI: `components/Portfolio/PatrimonyHistoryChart.tsx` (Chart.js `Line`) e `hooks/usePatrimonyHistory.ts`. Testes: `core/__tests__/patrimonyHistory.test.ts` (28). Cenários 188–192 em `cenarios-de-teste.md`.
+- QA: o relógio falso do navegador (`C:\Dev\mnance-qa\sim-patrimony-history.mjs`, só nas fases de teste) grava meses passados em `qa.rafael`. Os retratos 08/26 e 10/26 ficaram na conta (o app não apaga documentos).
 
 **Categorias da divisão (commit `d0e1f1d`, em produção desde 22/10/2026).** A "Caixa da Empresa" saiu como campo fixo. Agora todos têm 4 categorias padrão (Despesas, Educação Pessoal, Lazer, Investimentos) e podem criar até 5 personalizadas (nome + % em cada dia de pagamento).
 - Modelo: `Distribution.customCategories` (id + nome) e `PaydaySplit.customPercents` (id → %). Rótulos padrão e regras de nome em `core/distributionCategories.ts`.

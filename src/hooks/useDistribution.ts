@@ -195,6 +195,9 @@ export interface MonthlyFlow {
   // a tela Investimentos e o lembrete).
   investmentsPlan: number
   leisureTotal: number // fatia de Lazer + saldo roteado
+  // Despesas que contam na divisão mensal: o real (com lista detalhada) ou o orçado (sem lista). Usar o
+  // orçado com saldo roteado contaria o mesmo dinheiro duas vezes (em Despesas e em Investimentos).
+  essentialsTotal: number
 }
 
 function roundCents(value: number): number {
@@ -229,6 +232,7 @@ export function calculateMonthlyFlow({
     surplusToLeisure,
     investmentsPlan: amounts.investments + surplusToInvestments,
     leisureTotal: amounts.leisure + surplusToLeisure,
+    essentialsTotal: hasEssentialsList ? essentialsReal : amounts.essentials,
   }
 }
 
